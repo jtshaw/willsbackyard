@@ -46,6 +46,7 @@ pub mod ev {
     pub const STUCK: u32 = 1 << 12;
     pub const STEP: u32 = 1 << 13;
     pub const CHECKPOINT: u32 = 1 << 14;
+    pub const STOLEN: u32 = 1 << 15;
 }
 
 // ---------------------------------------------------------------------------
@@ -183,7 +184,8 @@ impl Game {
         self.phase = Phase::Intro;
         self.phase_t = 0.0;
         self.tension = 0.0;
-        self.vision = VISION_NORMAL;
+        // Trash Night is built around thermal, so it opens in it.
+        self.vision = if self.level_index == 5 { VISION_IR } else { VISION_NORMAL };
         let c = self.p.center();
         self.cam = v2(c.x, c.y - 90.0);
         self.cam_target = self.cam;
@@ -597,7 +599,7 @@ impl Game {
         self.update_pickups();
         self.update_checkpoints();
 
-        let res = npc::update(&mut self.lvl, &mut self.p, dt, self.time);
+        let res = npc::update(&mut self.lvl, &mut self.p, dt, self.time, self.loot);
         self.tension = res.tension;
         if res.new_alert {
             self.events |= ev::ALERT;
@@ -605,6 +607,23 @@ impl Game {
         }
         if res.bark {
             self.events |= ev::BARK;
+        }
+        if res.bitten {
+            self.events |= ev::HURT;
+            self.shake = self.shake.max(14.0);
+            let c = self.p.center();
+            self.burst(c, 10, S_STAR, (1.0, 0.45, 0.35), 420.0, 38.0, BLEND_ALPHA);
+        }
+        if res.stolen > 0 {
+            // Losing loot can re-lock the hedge, which is the whole threat.
+            self.loot = (self.loot - res.stolen).max(0);
+            self.score = (self.score - 120 * res.stolen).max(0);
+            self.events |= ev::STOLEN;
+            self.shake = self.shake.max(13.0);
+            self.toast_food = -2.0;          // the HUD reads this as a robbery
+            self.toast_t = 2.2;
+            let c = self.p.center();
+            self.burst(c, 12, S_STAR, (1.0, 0.5, 0.3), 420.0, 36.0, BLEND_ALPHA);
         }
         if res.caught && self.p.state != PlayerState::Safe {
             self.p.state = PlayerState::Caught;

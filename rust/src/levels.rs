@@ -5,7 +5,7 @@ use crate::level::*;
 use crate::math::*;
 use crate::sprites::*;
 
-pub const LEVEL_COUNT: usize = 5;
+pub const LEVEL_COUNT: usize = 6;
 
 // ---------------------------------------------------------------------------
 // Building blocks
@@ -941,12 +941,142 @@ fn level_night_run() -> Level {
     l
 }
 
+
+// ---------------------------------------------------------------------------
+// 6 -- Trash Night
+// Will and Popcorn are asleep on the deck. The yard belongs to a raccoon
+// family now, and they are bigger than you, faster than you, and they want
+// what you are carrying. Thermal shows their body heat through the bins.
+// ---------------------------------------------------------------------------
+
+fn level_trash_night() -> Level {
+    let mut l = Level::new(5, 5, Mood::Night);
+    l.bounds = rect(-400.0, -2800.0, 10600.0, 5600.0);
+    l.spawn = v2(240.0, 0.0);
+    l.loot_required = 3;
+    l.dark = 0.66;
+
+    ground(&mut l, -400.0, 10200.0, 0.0, Surface::Grass);
+
+    // --- the sleeping household ------------------------------------------
+    // A low deck, so the rat can run along it but Will is just scenery.
+    const DECK: f32 = -300.0;
+    block(&mut l, 1500.0, DECK, 1700.0, 120.0, Surface::Deck);
+    block(&mut l, 1340.0, -150.0, 170.0, 180.0, Surface::Deck);
+    for i in 0..9 {
+        l.decor.push(Decor::new(S_DECK_PLANK, 1560.0 + i as f32 * 192.0, DECK + 28.0)
+            .size(194.0, 58.0).shade(0.7).layer(layer::GROUND));
+    }
+    l.decor.push(Decor::new(S_CHAIR, 2250.0, DECK).scale(1.3).standing().shade(0.65).layer(layer::PROP));
+    // Will, out cold in the chair.
+    let mut will = Npc::new(NpcKind::WillBusy, 2250.0, DECK).facing(-1.0);
+    will.state = NpcState::Distracted;
+    will.cone_range = 0.0;
+    l.npcs.push(will);
+    // Popcorn, out cold beside him.
+    let mut dog = Npc::new(NpcKind::Popcorn, 2650.0, DECK).patrol(2650.0, 2650.0).speed(0.0);
+    dog.state = NpcState::Distracted;
+    dog.cone_range = 0.0;
+    l.npcs.push(dog);
+
+    // --- platforms -------------------------------------------------------
+    plat(&mut l, 3600.0, -200.0, 260.0, Surface::Wood);
+    plat(&mut l, 4050.0, -390.0, 240.0, Surface::Wood);
+    plat(&mut l, 5500.0, -210.0, 260.0, Surface::Wood);
+    plat(&mut l, 5950.0, -400.0, 260.0, Surface::Wood);
+    plat(&mut l, 7400.0, -200.0, 280.0, Surface::Wood);
+    plat(&mut l, 7850.0, -390.0, 260.0, Surface::Wood);
+    plat(&mut l, 9300.0, -220.0, 300.0, Surface::Wood);
+
+    // --- the obstacles the raccoons are sitting in ------------------------
+    // Each pair is (x, which prop) -- the prop is drawn in front so the
+    // raccoon is genuinely hidden until it breaks cover.
+    let dens: [(f32, u16, f32); 6] = [
+        (1150.0, S_GREEN_BIN, 1.25),
+        (3250.0, S_CRATE, 1.5),
+        (4600.0, S_GREEN_BIN, 1.3),
+        (6400.0, S_LOG_STACK, 1.1),
+        (8200.0, S_CRATE, 1.6),
+        (9000.0, S_GREEN_BIN, 1.35),
+    ];
+    for &(x, sprite, sc) in dens.iter() {
+        l.decor.push(Decor::new(sprite, x, 10.0).scale(sc).standing()
+            .shade(0.6).layer(layer::FRONT_PROP));
+        l.npcs.push(Npc::new(NpcKind::Raccoon, x, 0.0).trigger(430.0));
+        l.blockers.push(rect(x - 90.0, -200.0, 180.0, 200.0));
+    }
+
+    // The last stretch is the gauntlet: three of them, close together, between
+    // the rat and the hedge.
+    for (i, &x) in [9500.0f32, 9780.0, 10020.0].iter().enumerate() {
+        l.decor.push(Decor::new(if i % 2 == 0 { S_CRATE } else { S_GREEN_BIN }, x, 10.0)
+            .scale(1.2 + i as f32 * 0.12).standing().shade(0.58).layer(layer::FRONT_PROP));
+        l.npcs.push(Npc::new(NpcKind::Raccoon, x, 0.0).trigger(360.0).speed(460.0));
+    }
+
+    // --- backdrop ---------------------------------------------------------
+    house_h(&mut l, -900.0, 1500.0, 40.0, 0.3, true, 600.0);
+    fence_run(&mut l, 1500.0, 10600.0, -30.0, 0.5, 0.55, 360.0);
+    tree(&mut l, 900.0, -30.0, 1.3, 0.36, 0.44, true);
+    tree(&mut l, 5200.0, -30.0, 1.5, 0.33, 0.4, true);
+    tree(&mut l, 8600.0, -30.0, 1.35, 0.38, 0.44, true);
+    l.decor.push(Decor::new(S_MOON, 2400.0, -1400.0).scale(2.4).par(0.06).layer(layer::SKY + 1));
+    for i in 0..44 {
+        l.decor.push(
+            Decor::new(S_GLOW, -200.0 + hash_f(i, 0x9a1) * 10600.0, -2300.0 + hash_f(i, 0x5c2) * 1400.0)
+                .scale(0.1 + hash_f(i, 0x7d) * 0.13)
+                .par(0.05)
+                .alpha(0.45 + hash_f(i, 0x4e) * 0.5)
+                .layer(layer::SKY + 2),
+        );
+    }
+    scatter_lawn(&mut l, -300.0, 10100.0, 0.0, 0x61, true);
+    l.decor.push(Decor::new(S_TARP, 7000.0, 0.0).scale(1.05).standing().shade(0.5).layer(layer::MID + 2));
+
+    // --- a few traps still armed from the daytime -------------------------
+    l.traps.push(Trap::new(TrapKind::Snap, 2000.0, DECK).facing(-1.0));
+    l.traps.push(Trap::new(TrapKind::Glue, 5000.0, 0.0).no_food());
+    l.traps.push(Trap::new(TrapKind::Snap, 6900.0, 0.0));
+    l.traps.push(Trap::new(TrapKind::Zapper, 8700.0, 0.0).rhythm(2.0, 0.3).no_food());
+
+    // --- food -------------------------------------------------------------
+    // Deliberately before the first den: the opening encounter should teach
+    // robbery, not kill a player who has nothing to rob.
+    l.pickups.push(Pickup::new(Food::Cheese, 760.0, -80.0));
+    l.pickups.push(Pickup::new(Food::HotDog, 2100.0, DECK - 90.0).noisy());
+    l.pickups.push(Pickup::new(Food::Cheese, 4150.0, -470.0));
+    l.pickups.push(Pickup::new(Food::Bacon, 6050.0, -480.0));
+    l.pickups.push(Pickup::new(Food::Marshmallow, 7950.0, -470.0));
+    l.pickups.push(Pickup::new(Food::Cookie, 9400.0, -300.0).noisy());
+    l.pickups.push(Pickup::new(Food::Seed, 3700.0, -280.0));
+    l.pickups.push(Pickup::new(Food::Seed, 7500.0, -280.0));
+    for i in 0..9 {
+        l.pickups.push(Pickup::new(Food::Crumb, 320.0 + i as f32 * 130.0, -70.0));
+    }
+    for i in 0..7 {
+        l.pickups.push(Pickup::new(Food::Crumb, 1600.0 + i as f32 * 150.0, DECK - 70.0));
+    }
+    for i in 0..8 {
+        l.pickups.push(Pickup::new(Food::Crumb, 5100.0 + i as f32 * 150.0, -70.0));
+    }
+
+    cover(&mut l, 7000.0, -300.0, 420.0, 300.0, true);
+
+    l.checkpoints.push(v2(240.0, 0.0));
+    l.checkpoints.push(v2(3400.0, 0.0));
+    l.checkpoints.push(v2(5300.0, 0.0));
+    l.checkpoints.push(v2(7200.0, 0.0));
+    hedge_goal(&mut l, 10350.0, 0.0);
+    l
+}
+
 pub fn build(index: usize) -> Level {
     match index {
         0 => level_back_lawn(),
         1 => level_deck_feast(),
         2 => level_playhouse(),
         3 => level_hutch(),
-        _ => level_night_run(),
+        4 => level_night_run(),
+        _ => level_trash_night(),
     }
 }

@@ -35,6 +35,12 @@ fn ir_heat(sprite: u16, lay: i32) -> f32 {
     }
 }
 
+/// Readouts, not objects in the world: a thermal camera would not dim the
+/// game's own warning markers, and making them cold makes them unreadable.
+fn is_ui_marker(sprite: u16) -> bool {
+    matches!(sprite, S_FX_ALERT | S_FX_QUESTION | S_FX_ZZZ)
+}
+
 /// Steel traps sit at ambient temperature -- nearly invisible on thermal.
 fn is_cold_metal(sprite: u16) -> bool {
     matches!(
@@ -255,6 +261,13 @@ impl DrawList {
         let blend = (c.flags >> 2) & 3;
         if blend == BLEND_MUL {
             return; // vignette and darkness pass through untouched
+        }
+        if is_ui_marker(c.sprite) {
+            // Keep markers bright, but in the sensor's palette.
+            c.r = 1.6;
+            c.g = 1.1;
+            c.b = 0.5;
+            return;
         }
         let heat = ir_heat(c.sprite, c.layer);
         if heat > 0.0 {

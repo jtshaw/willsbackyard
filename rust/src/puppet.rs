@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use crate::draw::{layer, DrawList, Sp};
+use crate::draw::{layer, DrawList, Sp, BLEND_ADD};
 use crate::level::*;
 use crate::math::*;
 use crate::player::{Player, PlayerState};
@@ -436,5 +436,112 @@ pub fn draw_popcorn(dl: &mut DrawList, n: &Npc, t: f32) {
     if asleep {
         let f = ((t * 0.7) % 1.0).max(0.0);
         rig.part(dl, S_FX_ZZZ, P_HEAD_X + 30.0, head_y - 78.0 - f * 50.0, 0.7 + f * 0.3, 0.0, layer::FX);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Raccoons
+// ---------------------------------------------------------------------------
+
+pub const RAC_SCALE: f32 = 1.12;
+
+// Joints in authoring units, feet at 0. The body is a boulder, so the legs
+// attach well inside its silhouette and the head hangs off the front, low.
+const R_SHOULDER_X: f32 = 58.0;
+const R_SHOULDER_Y: f32 = -92.0;   // foreleg is 96 tall, hand at ~92
+const R_HIP_X: f32 = -52.0;
+const R_HIP_Y: f32 = -98.0;        // hind leg is 102 tall, foot at ~98
+const R_BODY_Y: f32 = -150.0;
+const R_HEAD_X: f32 = 112.0;
+const R_HEAD_Y: f32 = -112.0;      // carried LOW -- that is the whole posture
+const R_TAIL_X: f32 = -84.0;
+const R_TAIL_Y: f32 = -140.0;
+
+pub fn draw_raccoon(dl: &mut DrawList, n: &Npc, t: f32) {
+    let hiding = n.state == NpcState::Hiding;
+    let peeking = n.state == NpcState::Suspicious;
+    let chasing = n.state == NpcState::Chase;
+    let fleeing = n.state == NpcState::Flee;
+    let moving = n.vel.x.abs() > 8.0;
+
+    // Hidden raccoons are drawn only as eyeshine; the heat blob that gives
+    // them away in thermal is added by the scene layer.
+    if hiding {
+        let eye = v2(n.pos.x + 22.0 * n.facing, n.pos.y - 120.0);
+        let blink = ((t * 0.7 + n.home.x * 0.01).sin() * 0.5 + 0.5).powf(6.0);
+        dl.push(
+            Sp::new(S_RAC_EYESHINE, eye.x, eye.y)
+                .width(74.0)
+                .flip_x(n.facing < 0.0)
+                .alpha(0.30 + blink * 0.5)
+                .blend(BLEND_ADD)
+                .layer(layer::FX),
+        );
+        return;
+    }
+
+    let phase = n.anim * if chasing || fleeing { 15.0 } else { 7.0 };
+    let swing = if moving { phase.sin() } else { 0.0 };
+    // The boulder rocks rather than bounces.
+    let roll = if moving { (phase * 2.0).sin() * 5.0 } else { (t * 1.6).sin() * 1.4 };
+
+    let mut rig = Rig::new(n.pos, n.facing, RAC_SCALE);
+    rig.tilt = if chasing { 0.07 * n.facing } else { 0.0 };
+
+    // Breaking cover: it comes up out of the obstacle.
+    let emerge = if peeking {
+        1.0 - clamp(n.state_t / 0.45, 0.0, 1.0)
+    } else {
+        0.0
+    };
+    let sink = emerge * 90.0;
+
+    let body_y = R_BODY_Y + sink - roll * 0.3;
+    let hip_y = R_HIP_Y + sink;
+    let sh_y = R_SHOULDER_Y + sink;
+    let head_y = R_HEAD_Y + sink + if chasing { -8.0 } else { 0.0 };
+
+    // ---- tail: a low stub behind the mass -------------------------------
+    let tw = sprite_w(S_RAC_TAIL) * RAC_SCALE;
+    let ta = 0.42 + (t * 6.0).sin() * 0.08;
+    let joint = rig.pt(R_TAIL_X, R_TAIL_Y + sink);
+    let dir = v2(-n.facing, 0.0).rot(ta * n.facing + rig.tilt);
+    let tc = joint.add(dir.scale(tw * 0.5));
+    dl.push(
+        Sp::new(S_RAC_TAIL, tc.x, tc.y)
+            .scale(RAC_SCALE)
+            .rot(ta * n.facing + rig.tilt)
+            .flip_x(n.facing > 0.0)
+            .layer(layer::ACTOR_BACK),
+    );
+
+    // ---- far legs --------------------------------------------------------
+    rig.shade = 0.72;
+    rig.limb(dl, S_RAC_LEG_BACK, R_HIP_X + 12.0, hip_y, 1.0, -swing * 0.6, layer::ACTOR_BACK);
+    rig.limb(dl, S_RAC_LEG_FRONT, R_SHOULDER_X - 12.0, sh_y, 1.0, swing * 0.68, layer::ACTOR_BACK);
+    rig.shade = 1.0;
+
+    // ---- the boulder -----------------------------------------------------
+    rig.part(dl, S_RAC_BODY, 0.0, body_y, 1.0, roll * 0.004, layer::ACTOR);
+
+    // ---- head, slung low and forward -------------------------------------
+    let head_a = if chasing {
+        0.30 + (phase * 0.5).sin() * 0.05
+    } else if fleeing {
+        0.18
+    } else {
+        0.34 + (t * 2.0).sin() * 0.05
+    };
+    let hs = if chasing { S_RAC_HEAD_SNARL } else { S_RAC_HEAD };
+    rig.part(dl, hs, R_HEAD_X, head_y, 1.0, head_a, layer::ACTOR_FRONT);
+
+    // ---- near legs -------------------------------------------------------
+    rig.limb(dl, S_RAC_LEG_BACK, R_HIP_X - 10.0, hip_y, 1.0, swing * 0.64, layer::ACTOR_FRONT);
+    rig.limb(dl, S_RAC_LEG_FRONT, R_SHOULDER_X + 10.0, sh_y, 1.0, -swing * 0.72, layer::ACTOR_FRONT);
+
+    // Carrying off somebody else's dinner.
+    if n.carrying {
+        rig.part(dl, S_FOOD_HOTDOG, R_HEAD_X - 20.0, head_y + 34.0, 0.6,
+                 (t * 9.0).sin() * 0.2, layer::ACTOR_FRONT);
     }
 }

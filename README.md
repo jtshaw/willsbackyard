@@ -41,6 +41,7 @@ Gamepads work. On a phone, play in landscape — there's an on-screen d-pad.
 | 3 | The Playhouse | Swings as pendulum platforms, a wave slide, a rope net, and the kids' snacks. |
 | 4 | Under the Hutch | Pitch dark. Every trap is baited — lift the bait without springing it, and stay out of the flashlight. |
 | 5 | Night Run | Everyone is awake. Run. |
+| 6 | Trash Night | Will and Popcorn are asleep. The raccoons are not. |
 
 <p align="center">
   <img src="docs/screenshots/07_deck_grill.jpg" width="49%" alt="The deck and the grill">
@@ -52,13 +53,30 @@ sneaking is nearly silent, and grabbing food off a plate makes a clatter that
 carries. Each guard runs its own suspicion meter driven by what it can see and
 what it can hear.
 
+### The raccoons
+
+On the last level the household is asleep and the yard belongs to a family of
+raccoons. They sit inside the bins and crates and burst out when you get close.
+They would rather rob you than eat you: contact costs you a piece of **loot**,
+which can re-lock the hedge you were walking toward. Only if you are carrying
+nothing do they bite instead.
+
+This is what makes the thermal camera matter rather than decorate. A hiding
+raccoon shows nothing but a pair of eyes in normal vision — but its body heat
+reads straight through the bin it is sitting in, so infrared tells you which
+containers are occupied before you walk into them.
+
 ### Infrared
 
-The two dark levels carry a thermal camera on `I`. Warm bodies, the grill and
+The dark levels carry a thermal camera on `I`. Warm bodies, the grill and
 fresh food glow; the world goes cold. It sees through the dark — but steel traps
 sit at ambient temperature and nearly vanish, so it is a trade, not an upgrade.
 
 ![Infrared mode](docs/screenshots/17_night_IR.jpg)
+
+*A raccoon breaking cover on Trash Night, seen in thermal:*
+
+![Raccoon ambush in infrared](docs/screenshots/23_raccoon_IR.jpg)
 
 ## How it is built
 

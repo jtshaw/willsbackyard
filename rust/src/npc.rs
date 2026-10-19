@@ -14,6 +14,10 @@ const ALERT: f32 = 1.0;
 
 pub struct NpcResult {
     pub caught: bool,
+    /// A raccoon reached the rat and made off with a piece of loot.
+    pub stolen: i32,
+    /// A raccoon found nothing worth taking and bit instead.
+    pub bitten: bool,
     /// An NPC went from calm to chasing this frame -- worth a sting and a shout.
     pub new_alert: bool,
     /// Highest suspicion across all NPCs, for the HUD meter.
@@ -41,6 +45,10 @@ fn look_dir(n: &Npc) -> V2 {
 /// 0..1 -- how plainly the rat is visible to this NPC.
 pub fn visibility(n: &Npc, lvl: &Level, p: &Player, hidden: bool) -> f32 {
     if hidden || p.state == PlayerState::Caught || p.state == PlayerState::Safe {
+        return 0.0;
+    }
+    // Raccoons ambush by proximity; they have no vision cone to speak of.
+    if n.kind == NpcKind::Raccoon {
         return 0.0;
     }
     let eye = n.eye();
@@ -92,10 +100,12 @@ fn audibility(n: &Npc, p: &Player) -> f32 {
     p.noise * (1.0 - d / range)
 }
 
-pub fn update(lvl: &mut Level, p: &mut Player, dt: f32, t: f32) -> NpcResult {
+pub fn update(lvl: &mut Level, p: &mut Player, dt: f32, t: f32, player_loot: i32) -> NpcResult {
     let hidden = in_cover(lvl, p);
     let mut res = NpcResult {
         caught: false,
+        stolen: 0,
+        bitten: false,
         new_alert: false,
         tension: 0.0,
         bark: false,
@@ -117,6 +127,90 @@ pub fn update(lvl: &mut Level, p: &mut Player, dt: f32, t: f32) -> NpcResult {
         n.bark = (n.bark - dt).max(0.0);
 
         let was_chasing = n.state == NpcState::Chase;
+
+        // ---- raccoons: a self-contained ambush loop -------------------------
+        if n.kind == NpcKind::Raccoon {
+            let dx = player_pos.x - n.pos.x;
+            let dy = player_center.y - n.pos.y;
+            let near = dx.abs() < n.trigger && dy.abs() < 320.0;
+
+            match n.state {
+                NpcState::Hiding => {
+                    n.vel.x = 0.0;
+                    n.suspicion = 0.0;
+                    if near && p.state == PlayerState::Normal {
+                        n.state = NpcState::Suspicious; // a beat of warning
+                        n.state_t = 0.0;
+                        n.facing = sign(dx);
+                    }
+                }
+                NpcState::Suspicious => {
+                    // Eyes open in the dark, then it commits.
+                    n.vel.x = 0.0;
+                    n.facing = sign(dx);
+                    if n.state_t > 0.45 {
+                        n.state = NpcState::Chase;
+                        n.state_t = 0.0;
+                        res.new_alert = true;
+                    }
+                }
+                NpcState::Chase => {
+                    let dir = sign(dx);
+                    n.pos.x += dir * n.speed * dt;
+                    n.vel.x = dir * n.speed;
+                    if dir != 0.0 {
+                        n.facing = dir;
+                    }
+                    n.suspicion = 1.0;
+                    // Contact.
+                    if dx.abs() < 96.0 && dy.abs() < 190.0 && p.invuln <= 0.0 {
+                        if player_loot > res.stolen {
+                            // Robbery: it takes the food and runs.
+                            res.stolen += 1;
+                            n.carrying = true;
+                            p.vel = v2(-sign(dx) * 520.0, -420.0);
+                            p.invuln = 1.0;
+                        } else {
+                            // Nothing worth taking, so it bites. That costs a
+                            // heart like any other hazard -- being robbed is
+                            // the threat here, not instant death.
+                            if p.hurt(n.pos.x, 1) {
+                                res.bitten = true;
+                            }
+                        }
+                        n.state = NpcState::Flee;
+                        n.state_t = 0.0;
+                    }
+                    // Give up if the rat gets clear.
+                    if n.state_t > 6.0 || dx.abs() > n.trigger * 2.6 {
+                        n.state = NpcState::Flee;
+                        n.state_t = 0.0;
+                    }
+                }
+                NpcState::Flee => {
+                    let dir = sign(n.home.x - n.pos.x);
+                    n.pos.x += dir * n.speed * 0.95 * dt;
+                    n.vel.x = dir * n.speed;
+                    if dir != 0.0 {
+                        n.facing = dir;
+                    }
+                    n.suspicion = 0.0;
+                    if (n.pos.x - n.home.x).abs() < 50.0 || n.state_t > 4.0 {
+                        n.pos.x = n.home.x;
+                        n.state = NpcState::Hiding;
+                        n.state_t = 0.0;
+                        n.carrying = false;
+                    }
+                }
+                _ => {
+                    n.state = NpcState::Hiding;
+                    n.state_t = 0.0;
+                }
+            }
+            res.tension = res.tension.max(if n.state == NpcState::Chase { 1.0 } else { 0.0 });
+            continue;
+        }
+
 
         // ---- look direction ------------------------------------------------
         match n.kind {
@@ -245,6 +339,13 @@ pub fn update(lvl: &mut Level, p: &mut Player, dt: f32, t: f32) -> NpcResult {
                     n.state = NpcState::Patrol;
                     n.state_t = 0.0;
                 }
+            }
+            // Raccoon-only states; anything else that lands here goes back to
+            // doing its normal job.
+            NpcState::Hiding | NpcState::Flee => {
+                n.vel.x = 0.0;
+                n.state = if can_move { NpcState::Patrol } else { NpcState::Pause };
+                n.state_t = 0.0;
             }
         }
 

@@ -364,6 +364,9 @@ pub enum NpcKind {
     /// Sweeps a flashlight under the hutch.
     WillLight,
     Popcorn,
+    /// Ambusher. Waits inside an obstacle until the rat is close, then bursts
+    /// out to rob it -- or to eat it, if there is nothing worth taking.
+    Raccoon,
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -375,6 +378,10 @@ pub enum NpcState {
     Return,
     /// Looking away / occupied: harmless for a window of time.
     Distracted,
+    /// Tucked inside an obstacle, waiting. Gives off heat but no sight line.
+    Hiding,
+    /// Running home, usually with somebody's dinner.
+    Flee,
 }
 
 #[derive(Clone, Copy)]
@@ -397,6 +404,10 @@ pub struct Npc {
     pub bark: f32,
     /// Vertical reach -- Will cannot see you under the deck.
     pub eye_h: f32,
+    /// Raccoons only: how close the rat must get to set off the ambush.
+    pub trigger: f32,
+    /// Raccoons only: made off with a piece of loot.
+    pub carrying: bool,
 }
 
 impl Npc {
@@ -406,6 +417,8 @@ impl Npc {
             NpcKind::WillBusy => (0.0, 620.0, 0.55, 430.0),
             NpcKind::WillLight => (0.0, 980.0, 0.22, 60.0),
             NpcKind::Popcorn => (330.0, 620.0, 0.62, 150.0),
+            // Short sight: they hunt by ambush, not by scanning the yard.
+            NpcKind::Raccoon => (430.0, 300.0, 0.7, 120.0),
         };
         Npc {
             kind,
@@ -416,10 +429,10 @@ impl Npc {
             to: x + 300.0,
             facing: 1.0,
             speed,
-            state: if kind == NpcKind::WillBusy || kind == NpcKind::WillLight {
-                NpcState::Pause
-            } else {
-                NpcState::Patrol
+            state: match kind {
+                NpcKind::WillBusy | NpcKind::WillLight => NpcState::Pause,
+                NpcKind::Raccoon => NpcState::Hiding,
+                _ => NpcState::Patrol,
             },
             state_t: 0.0,
             suspicion: 0.0,
@@ -429,7 +442,14 @@ impl Npc {
             cone_half: half,
             bark: 0.0,
             eye_h: eye,
+            trigger: 430.0,
+            carrying: false,
         }
+    }
+    /// How close the rat must get before this raccoon breaks cover.
+    pub fn trigger(mut self, d: f32) -> Npc {
+        self.trigger = d;
+        self
     }
     pub fn patrol(mut self, from: f32, to: f32) -> Npc {
         self.from = from;

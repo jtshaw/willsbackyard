@@ -9,7 +9,8 @@ var LEVEL_NAMES = [
   "Deck Feast",
   "The Playhouse",
   "Under the Hutch",
-  "Night Run"
+  "Night Run",
+  "Trash Night"
 ];
 
 var LEVEL_HINTS = [
@@ -17,7 +18,8 @@ var LEVEL_HINTS = [
   "Will is working the grill. Drop under the deck when he turns your way — he can't see beneath his own boards.",
   "Ride the swings, climb the rope net. Popcorn hears everything, so hold <kbd>Shift</kbd> and sneak.",
   "Pitch dark, and every trap is baited. Crouch beside one and press <kbd>E</kbd> to lift the bait safely. Stay out of the beam.",
-  "Will is up, Popcorn is loose, and the hedge is a long way off. Run."
+  "Will is up, Popcorn is loose, and the hedge is a long way off. Run.",
+  "Will and Popcorn are asleep. The raccoons are not. They burst out of the bins when you get close, and they would rather rob you than eat you &mdash; but they will settle for eating you. Thermal shows their body heat <em>through</em> cover: use it."
 ];
 
 var LEVEL_BLURBS = [
@@ -25,7 +27,8 @@ var LEVEL_BLURBS = [
   "The pumpkins are out and the grill is hot. So is Will.",
   "The kids left their snacks on the playhouse deck.",
   "Under the wood hutch, where Will keeps the good traps.",
-  "Last run. Get to the neighbour's hedge."
+  "Last run. Get to the neighbour's hedge.",
+  "Late. The bins have eyes."
 ];
 
 var FOOD_NAMES = [
@@ -38,7 +41,8 @@ var PHASE = { TITLE: 0, INTRO: 1, PLAYING: 2, CAUGHT: 3, COMPLETE: 4, GAMEOVER: 
 var EV = {
   JUMP: 1 << 0, LAND: 1 << 1, PICKUP: 1 << 2, LOOT: 1 << 3, SNAP: 1 << 4,
   ZAP: 1 << 5, HURT: 1 << 6, ALERT: 1 << 7, BARK: 1 << 8, CAUGHT: 1 << 9,
-  SAFE: 1 << 10, DISARM: 1 << 11, STUCK: 1 << 12, STEP: 1 << 13, CHECKPOINT: 1 << 14
+  SAFE: 1 << 10, DISARM: 1 << 11, STUCK: 1 << 12, STEP: 1 << 13, CHECKPOINT: 1 << 14,
+  STOLEN: 1 << 15
 };
 
 // ---------------------------------------------------------------------------
@@ -186,6 +190,12 @@ var Audio_ = (function () {
       case 'disarm': tone(1046, t, 0.07, 'sine', 0.22); tone(1568, t + 0.06, 0.14, 'sine', 0.18); break;
       case 'stuck':  noise(t, 0.3, 0.2, 120, 500); break;
       case 'check':  tone(659, t, 0.1, 'sine', 0.2); tone(988, t + 0.08, 0.2, 'sine', 0.18); break;
+      case 'stolen':
+        // A chittering snatch, then the sound of it leaving.
+        for (var k = 0; k < 6; k++) tone(900 - k * 60, t + k * 0.035, 0.06, 'square', 0.16);
+        tone(330, t + 0.2, 0.3, 'sawtooth', 0.22, 120);
+        noise(t, 0.18, 0.2, 400, 2200);
+        break;
     }
   }
 
@@ -456,7 +466,7 @@ function startLevel(i) {
 
 function moodFor(i) {
   // Matches Level::new in Rust: 0 afternoon, 1 dusk, 2 night, 3 underside.
-  return [1, 0, 0, 3, 2][i];
+  return [1, 0, 0, 3, 2, 2][i];
 }
 
 // ---------------------------------------------------------------------------
@@ -536,7 +546,7 @@ function bindEvents() {
 // ---------------------------------------------------------------------------
 
 var lastStats = { total: 0, deaths: 0 };
-var irOn = false, irAvailable = false;
+var irOn = false, irAvailable = false, irHintTimer = 0;
 
 // Infrared is a night-vision aid: it only exists where it would be useful.
 function toggleIR() {
@@ -566,6 +576,14 @@ function updateHud(s) {
     irAvailable = canIR;
     ui.irBtn.classList.toggle('hidden', !canIR);
     if (!canIR && irOn) { irOn = false; ui.hud.classList.remove('ir'); ui.irBtn.classList.remove('on'); }
+    // The button is small and easy to miss, so announce it on arrival.
+    if (canIR) {
+      ui.toast.innerHTML = 'Thermal camera available &mdash; press <b>I</b>';
+      ui.toast.style.background = '';
+      ui.toast.style.opacity = 1;
+      clearTimeout(irHintTimer);
+      irHintTimer = setTimeout(function () { ui.toast.style.opacity = 0; }, 3200);
+    }
   }
   if ((s[37] > 0.5) !== irOn) {
     irOn = s[37] > 0.5;
@@ -604,8 +622,13 @@ function updateHud(s) {
   if (djump > 0) pw += '<i class="pw jump" title="Double jump">↑</i>';
   if (pw !== hudCache.pw) { hudCache.pw = pw; ui.powerups.innerHTML = pw; }
 
-  if (toastT > 0 && toastFood >= 0) {
+  if (toastT > 0 && toastFood === -2) {
+    ui.toast.textContent = 'A raccoon took it!';
+    ui.toast.style.background = '#8c2f24';
+    ui.toast.style.opacity = Math.min(1, toastT);
+  } else if (toastT > 0 && toastFood >= 0) {
     ui.toast.textContent = 'Got the ' + FOOD_NAMES[toastFood];
+    ui.toast.style.background = '';
     ui.toast.style.opacity = Math.min(1, toastT);
   } else {
     ui.toast.style.opacity = 0;
@@ -644,6 +667,7 @@ function handleEvents(bits) {
   if (bits & EV.DISARM) Audio_.play('disarm');
   if (bits & EV.STUCK) Audio_.play('stuck');
   if (bits & EV.CHECKPOINT) Audio_.play('check');
+  if (bits & EV.STOLEN) Audio_.play('stolen');
 }
 
 function frame(now) {

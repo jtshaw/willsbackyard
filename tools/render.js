@@ -157,6 +157,11 @@ async function main() {
     ['19_night_IR_deck',  4, 3900, -220, 40, 0, true],
     // Repro of the reported frame: dog + suspicion marker on level 1.
     ['20_repro_marker',   0, 5750,    0, 150, 2],
+    // Trash Night: the ambush, in both camera modes.
+    ['21_trash_sleep',    5, 2200, -300, 40, 0],
+    ['22_trash_ambush',   5,  980,    0, 70, 2],
+    ['23_trash_ambush_IR',5,  980,    0, 70, 2, true],
+    ['24_trash_gauntlet', 5, 9350,    0, 80, 2, true],
   ];
 
   for (const [label, lvl, tx, ty, warm, input, ir] of shots) {

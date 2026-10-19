@@ -326,7 +326,7 @@ pub fn draw_npcs(dl: &mut DrawList, lvl: &Level, t: f32) {
             (1.0, 0.94 - alert * 0.3, 0.72 - alert * 0.4)
         };
         let base_a = if is_light { 0.0 } else { 0.5 };
-        if (n.state != NpcState::Distracted) && !is_light {
+        if (n.state != NpcState::Distracted) && !is_light && n.kind != NpcKind::Raccoon {
             dl.push(
                 Sp::new(sprite, c.x, c.y)
                     .size(range, half_h.max(120.0))
@@ -340,6 +340,24 @@ pub fn draw_npcs(dl: &mut DrawList, lvl: &Level, t: f32) {
 
         // --- the character ---
         match n.kind {
+            NpcKind::Raccoon => {
+                if n.state != NpcState::Hiding {
+                    dl.shadow(n.pos.x, n.pos.y - 6.0, 280.0, 0.42);
+                }
+                // Thermal sees the body heat straight through the bin it is
+                // sitting in -- this is what makes IR worth having here.
+                if dl.vision == VISION_IR {
+                    dl.push(
+                        Sp::new(S_LIGHT_BLOB, n.pos.x, n.pos.y - 110.0)
+                            .width(300.0)
+                            .tint(1.9, 0.75, 0.25)
+                            .alpha(if n.state == NpcState::Hiding { 0.65 } else { 0.4 })
+                            .blend(BLEND_ADD)
+                            .layer(layer::FRONT_PROP + 2),
+                    );
+                }
+                puppet::draw_raccoon(dl, n, t);
+            }
             NpcKind::Popcorn => {
                 dl.shadow(n.pos.x, n.pos.y - 6.0, 300.0, 0.4);
                 puppet::draw_popcorn(dl, n, t);
@@ -368,6 +386,9 @@ pub fn draw_npcs(dl: &mut DrawList, lvl: &Level, t: f32) {
         }
 
         // --- suspicion marker above the head ---
+        if n.kind == NpcKind::Raccoon && n.state == NpcState::Hiding {
+            continue;
+        }
         let head_y = n.pos.y - n.eye_h - 150.0;
         if n.state == NpcState::Chase {
             let pop = ease_out_back(clamp(n.state_t * 5.0, 0.0, 1.0));
