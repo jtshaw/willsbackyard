@@ -81,6 +81,9 @@ const out = shell.replace('__SCRIPTS__', () => scripts)
 fs.writeFileSync('dist/willsbackyard.html', out);
 // GitHub Pages serves this one (Settings -> Pages -> branch main, folder /docs).
 fs.writeFileSync('docs/index.html', out);
+// Tell GitHub Pages not to run Jekyll over this -- it is a single static page
+// with a large embedded payload and Jekyll only slows the deploy down.
+fs.writeFileSync('docs/.nojekyll', '');
 
 const kb = (n) => (n / 1024).toFixed(1).padStart(7);
 console.log(`    wasm   ${kb(wasm.length)} KB`);
