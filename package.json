@@ -1,0 +1,14 @@
+{
+  "name": "willsbackyard",
+  "version": "1.0.0",
+  "description": "A side-scrolling stealth-platformer about a rat raiding a backyard. Rust + WebAssembly + WebGL in one self-contained HTML file.",
+  "private": true,
+  "scripts": {
+    "build": "./build.sh",
+    "test": "node tools/test_quad.js && node tools/test_core.js",
+    "shots": "node tools/render.js shots"
+  },
+  "devDependencies": {
+    "@napi-rs/canvas": "^1.0.11"
+  }
+}

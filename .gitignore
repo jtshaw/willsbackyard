@@ -1,0 +1,11 @@
+# Rust build output
+rust/target/
+
+# Node
+node_modules/
+
+# Generated screenshots and the intermediate bundle
+build/
+
+# macOS
+.DS_Store
