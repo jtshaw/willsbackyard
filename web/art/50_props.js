@@ -235,27 +235,47 @@ def('playhouse_roof', 520, 160, function (c, w, h) {
   c.restore();
 });
 
-// Yellow wave slide from the playground photo.
-def('slide', 460, 300, function (c, w, h) {
+// Yellow wave slide from the playground photo. Authored running DOWNHILL
+// from the top-right to the bottom-left, corner to corner, so it can be
+// scaled onto a steep ramp without distorting the thickness of the chute.
+def('slide', 420, 400, function (c, w, h) {
   var p = new Path2D();
-  p.moveTo(400, 18);
-  p.bezierCurveTo(300, 40, 230, 120, 150, 200);
-  p.bezierCurveTo(100, 250, 60, 266, 18, 268);
-  p.lineTo(18, 296); p.bezierCurveTo(78, 294, 130, 272, 186, 220);
-  p.bezierCurveTo(262, 148, 320, 76, 444, 56);
+  // Upper surface, with the shallow wave the real one has.
+  p.moveTo(392, 26);
+  p.bezierCurveTo(300, 58, 252, 148, 192, 214);
+  p.bezierCurveTo(142, 270, 90, 310, 40, 330);
+  p.lineTo(40, 368);                                 // run-out lip at the foot
+  p.bezierCurveTo(100, 348, 162, 306, 216, 248);
+  p.bezierCurveTo(278, 180, 322, 96, 404, 64);
   p.closePath();
   paper(c, p, C.slide, { w: w, h: h, lw: 3.6 * PIX });
-  c.save(); c.clip(p);
-  var g = c.createLinearGradient(0, 0, 0, h);
-  g.addColorStop(0, 'rgba(255,255,255,0.5)'); g.addColorStop(0.45, 'rgba(255,255,255,0)'); g.addColorStop(1, 'rgba(160,110,0,0.35)');
+
+  c.save();
+  c.clip(p);
+  // Glossy plastic: bright along the top edge, shadowed underneath.
+  var g = c.createLinearGradient(260, 0, 140, h);
+  g.addColorStop(0, 'rgba(255,255,255,0.55)');
+  g.addColorStop(0.42, 'rgba(255,255,255,0)');
+  g.addColorStop(1, 'rgba(150,100,0,0.4)');
   c.fillStyle = g; c.fillRect(0, 0, w, h);
   c.restore();
-  // raised side rail
-  c.save(); c.strokeStyle = sh(C.slide, -0.28); c.lineWidth = 4 * PIX; c.lineCap = 'round';
+
+  // Raised side rail following the upper edge.
+  c.save();
+  c.strokeStyle = sh(C.slide, -0.3); c.lineWidth = 5 * PIX; c.lineCap = 'round';
   c.beginPath();
-  c.moveTo(404, 30); c.bezierCurveTo(304, 54, 236, 132, 158, 210);
-  c.bezierCurveTo(108, 258, 70, 278, 24, 282);
-  c.stroke(); c.restore();
+  c.moveTo(390, 36);
+  c.bezierCurveTo(300, 68, 254, 156, 196, 222);
+  c.bezierCurveTo(146, 278, 94, 318, 46, 336);
+  c.stroke();
+  // A highlight running down the middle of the chute.
+  c.strokeStyle = 'rgba(255,255,255,0.5)'; c.lineWidth = 3 * PIX;
+  c.beginPath();
+  c.moveTo(388, 48);
+  c.bezierCurveTo(300, 80, 256, 166, 200, 230);
+  c.bezierCurveTo(150, 286, 100, 324, 50, 344);
+  c.stroke();
+  c.restore();
 });
 
 def('swing_seat', 120, 70, function (c, w, h) {

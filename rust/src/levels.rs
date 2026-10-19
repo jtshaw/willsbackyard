@@ -572,13 +572,19 @@ fn level_playhouse() -> Level {
     l.decor.push(Decor::new(S_POST_WOOD, 3440.0, 0.0).size(36.0, 960.0).standing().layer(layer::PROP));
 
     // --- the yellow slide, running down to the left ---
-    l.decor.push(Decor::new(S_SLIDE, 1480.0, DECKY + 290.0).size(960.0, 620.0).layer(layer::PROP + 2).flip());
-    // Approximated with a staircase of thin one-way steps.
+    // The sprite is authored high-right / low-left, which is already the
+    // direction of travel here -- flipping it pointed the slide uphill.
+    // The chute occupies x 40..404, y 26..368 of a 420x400 sprite and has to
+    // land on (1880, -860)..(1000, -40), which works out at ~2.4x both ways.
+    l.decor.push(Decor::new(S_SLIDE, 1411.0, -442.0).size(1016.0, 960.0).layer(layer::PROP + 2));
+    // Collision is a staircase of thin steps under the drawn chute. They are
+    // Hidden because the slide graphic is the thing the player should read --
+    // visible planks on top of it looked like scaffolding.
     for i in 0..9 {
         let t = i as f32 / 8.0;
         let x = 1950.0 - t * 880.0;
         let y = DECKY + 40.0 + t * t * 820.0;
-        plat(&mut l, x - 70.0, y, 150.0, Surface::Plastic);
+        plat(&mut l, x - 70.0, y, 150.0, Surface::Hidden);
     }
 
     // --- swing set ---
