@@ -1,6 +1,6 @@
 // ============================================================================
-// Popcorn -- white hound/pointer with brown brindle patches, long floppy ears
-// and a plum harness, after the reference photo.
+// Popcorn -- white hound/pointer with brown brindle patches, long floppy ears,
+// a plum harness and her pink tutu, after the reference photo.
 //
 // Everything is authored FACING RIGHT with canvas y pointing DOWN, so:
 //   * the skull sits up-and-left, the muzzle runs down-and-right
@@ -230,5 +230,83 @@ def('pop_harness', 70, 72, function (c, w, h) {
   c.strokeStyle = C.steel; c.lineWidth = 3.6 * PIX;
   c.beginPath(); c.arc(36, 14, 7, 0, Math.PI * 2); c.stroke();
   c.strokeStyle = C.steelDk; c.lineWidth = 1.4 * PIX; c.stroke();
+  c.restore();
+});
+
+// ---- the tutu --------------------------------------------------------------
+// Bright pink tulle gathered at the waist and flaring over the hindquarters,
+// as in the reference photo. Layered translucent skirts rather than one slab,
+// so it reads as netting rather than fabric.
+def('pop_tutu', 156, 118, function (c, w, h) {
+  srnd(33);
+
+  // Back skirt, darkest and widest.
+  var back = new Path2D();
+  back.moveTo(30, 34);
+  back.bezierCurveTo(60, 14, 104, 16, 132, 36);
+  back.bezierCurveTo(146, 56, 142, 86, 124, 100);
+  back.bezierCurveTo(96, 114, 54, 112, 30, 96);
+  back.bezierCurveTo(14, 80, 14, 50, 30, 34);
+  back.closePath();
+  c.save();
+  c.globalAlpha = 0.75;
+  paper(c, back, sh(C.tutu, -0.18), { w: w, h: h, lw: 2.4 * PIX, shade: false });
+  c.restore();
+
+  // Front skirt, brighter and slightly smaller.
+  var front = new Path2D();
+  front.moveTo(38, 40);
+  front.bezierCurveTo(64, 24, 100, 26, 122, 44);
+  front.bezierCurveTo(134, 62, 130, 84, 114, 96);
+  front.bezierCurveTo(90, 106, 56, 104, 38, 90);
+  front.bezierCurveTo(26, 76, 26, 54, 38, 40);
+  front.closePath();
+  paper(c, front, C.tutu, { w: w, h: h, lw: 2.6 * PIX });
+
+  // Vertical gathers radiating from the waistband.
+  c.save();
+  c.clip(front);
+  c.strokeStyle = 'rgba(255,255,255,0.42)';
+  c.lineWidth = 2.2 * PIX;
+  c.lineCap = 'round';
+  for (var i = 0; i < 11; i++) {
+    var t = i / 10;
+    var x0 = 48 + t * 60;
+    var x1 = 34 + t * 92;
+    c.beginPath();
+    c.moveTo(x0, 34);
+    c.quadraticCurveTo(x1 - 4, 68, x1, 102);
+    c.stroke();
+  }
+  // A little depth under the waistband.
+  var g = c.createLinearGradient(0, 24, 0, h);
+  g.addColorStop(0, rgba(sh(C.tutu, -0.3), 0.55));
+  g.addColorStop(0.4, 'rgba(255,255,255,0)');
+  g.addColorStop(1, rgba(sh(C.tutu, -0.22), 0.4));
+  c.fillStyle = g;
+  c.fillRect(0, 0, w, h);
+  c.restore();
+
+  // Scalloped hem, so the edge reads as netting.
+  c.save();
+  c.strokeStyle = rgba(sh(C.tutu, 0.4), 0.8);
+  c.lineWidth = 2 * PIX;
+  c.beginPath();
+  for (var k = 0; k < 7; k++) {
+    var hx = 40 + k * 13;
+    c.moveTo(hx, 96 + (k % 2) * 4);
+    c.arc(hx + 6, 96 + (k % 2) * 4, 7, Math.PI, 0, true);
+  }
+  c.stroke();
+  c.restore();
+
+  // Waistband, gathered tight.
+  paper(c, roundRect(52, 22, 56, 18, 9), sh(C.tutu, -0.26), { w: w, h: h, lw: 2.2 * PIX, shade: false });
+  c.save();
+  c.strokeStyle = 'rgba(255,255,255,0.45)';
+  c.lineWidth = 1.8 * PIX;
+  c.beginPath();
+  for (var j = 0; j < 6; j++) { c.moveTo(58 + j * 9, 24); c.lineTo(58 + j * 9, 38); }
+  c.stroke();
   c.restore();
 });

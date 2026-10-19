@@ -403,6 +403,13 @@ pub fn draw_popcorn(dl: &mut DrawList, n: &Npc, t: f32) {
     // ---- body (the neck is part of this sprite) --------------------------
     rig.part(dl, S_POP_BODY, 0.0, body_y, 1.0, 0.0, layer::ACTOR);
 
+    // ---- the tutu, gathered over the hindquarters ------------------------
+    // Drawn after the body but before the near legs, so the hind legs come
+    // out from under the skirt rather than through it. Tulle is light, so it
+    // lags the body a little when she moves.
+    let skirt = if moving { (phase - 0.6).sin() * 0.07 } else { (t * 2.4).sin() * 0.03 };
+    rig.part(dl, S_POP_TUTU, -44.0, body_y + 10.0, 0.80, skirt, layer::ACTOR_FRONT);
+
     // ---- head ------------------------------------------------------------
     // Only ever a gentle nod: sniffing low, or level when she is hunting.
     let head_a = if asleep {
