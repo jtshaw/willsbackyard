@@ -12,3 +12,8 @@ build/
 
 # The page password -- never commit this
 .password
+
+# Editor swap files
+*.swp
+*.swo
+*~
