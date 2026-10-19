@@ -84,11 +84,6 @@ fs.writeFileSync('docs/index.html', out);
 // Tell GitHub Pages not to run Jekyll over this -- it is a single static page
 // with a large embedded payload and Jekyll only slows the deploy down.
 fs.writeFileSync('docs/.nojekyll', '');
-// Pages stores the custom domain in docs/CNAME when publishing from a branch
-// folder. Rewriting docs/ without it would drop the domain on the next build.
-if (!fs.existsSync('docs/CNAME')) {
-  fs.writeFileSync('docs/CNAME', 'willsbackyard.jtshaw.com\n');
-}
 
 const kb = (n) => (n / 1024).toFixed(1).padStart(7);
 console.log(`    wasm   ${kb(wasm.length)} KB`);
