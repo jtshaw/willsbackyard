@@ -16,7 +16,7 @@ var LEVEL_NAMES = [
 var LEVEL_HINTS = [
   "Crumbs are points, real food is loot. Snap traps <em>click</em> before they bite — keep moving.",
   "Will is working the grill. Drop under the deck when he turns your way — he can't see beneath his own boards.",
-  "Ride the swings, climb the rope net. Popcorn hears everything, so hold <kbd>Shift</kbd> and sneak.",
+  "Ride the swings and the rope net. The slide works both ways &mdash; hold <kbd>&uarr;</kbd> to scrabble back up it. Popcorn hears everything, so hold <kbd>Shift</kbd> and sneak.",
   "Pitch dark, and every trap is baited. Crouch beside one and press <kbd>E</kbd> to lift the bait safely. Stay out of the beam.",
   "Will is up, Popcorn is loose, and the hedge is a long way off. Run.",
   "Will and Popcorn are asleep. The raccoons are not. They burst out of the bins when you get close, and they would rather rob you than eat you &mdash; but they will settle for eating you. Thermal shows their body heat <em>through</em> cover: use it."

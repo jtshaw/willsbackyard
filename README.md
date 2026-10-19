@@ -25,7 +25,7 @@ mean.
 | `Space` / `↑` | Jump (hold for height) |
 | `Shift` / `↓` | Sneak — slow, short, and quiet |
 | `E` | Lift bait off a trap (crouch beside it first) |
-| `↑` `↓` | Climb ladders and rope nets |
+| `↑` `↓` | Climb ladders, rope nets and the slide |
 | `I` | Infrared camera (dark levels only) |
 | `M` | Mute |
 | `Esc` | Pause |
@@ -38,7 +38,7 @@ Gamepads work. On a phone, play in landscape — there's an on-screen d-pad.
 | --- | --- | --- |
 | 1 | The Back Lawn | Dusk tutorial. Snap traps, a dozing dog, a flowerbed to cross. |
 | 2 | Deck Feast | Will works the grill while you raid the table. He can't see under his own deck. |
-| 3 | The Playhouse | Swings as pendulum platforms, a wave slide, a rope net, and the kids' snacks. |
+| 3 | The Playhouse | Swings as pendulum platforms, a wave slide you can climb back up, a rope net, and the kids' snacks. |
 | 4 | Under the Hutch | Pitch dark. Every trap is baited — lift the bait without springing it, and stay out of the flashlight. |
 | 5 | Night Run | Everyone is awake. Run. |
 | 6 | Trash Night | Will and Popcorn are asleep. The raccoons are not. |

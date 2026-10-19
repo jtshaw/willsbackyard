@@ -586,6 +586,16 @@ fn level_playhouse() -> Level {
         let y = DECKY + 40.0 + t * t * 820.0;
         plat(&mut l, x - 70.0, y, 150.0, Surface::Hidden);
     }
+    // ...and the chute itself is climbable. One-way steps only catch you from
+    // above, so they are fine to ride down but impossible to walk up, and the
+    // gaps are wider than a running jump lands. Scrabbling up a slide is what
+    // you would do anyway: hold Up.
+    for i in 0..13 {
+        let t = i as f32 / 12.0;
+        let x = 1950.0 - t * 880.0;
+        let y = DECKY + 40.0 + t * t * 820.0;
+        l.climbs.push(rect(x - 95.0, y - 185.0, 190.0, 270.0));
+    }
 
     // --- swing set ---
     const BEAM: f32 = -1150.0;
