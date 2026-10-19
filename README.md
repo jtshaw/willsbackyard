@@ -15,6 +15,10 @@ Download [`dist/willsbackyard.html`](dist/willsbackyard.html) and open it in any
 modern browser. That's it — the WebAssembly core is base64-embedded in the page
 and every sprite is drawn procedurally at load.
 
+The published build asks for a password before it will run. See
+[Password protection](#password-protection) for what that does and does not
+mean.
+
 | Input | Action |
 | --- | --- |
 | `←` `→` / `A` `D` | Run |
@@ -83,11 +87,32 @@ JS reads it back.
 **No image assets.** Every sprite is drawn procedurally with Canvas2D at load
 and packed into one atlas. The art style is Paper Mario by way of flat cut-out
 shapes, inked edges, a single form-shadow gradient, and a little paper grain.
-This is why the page is 300 KB and still has 122 distinct sprites.
+This is why the page is a few hundred KB and still has 122 distinct sprites.
 
 **Sprite ids are generated.** `tools/gen_sprites.js` parses the art files and
 emits `rust/src/sprites.rs`, so Rust and JS can never disagree about which
 sprite is which, or how big it is.
+
+## Password protection
+
+A password on a static page is usually theatre: the check compares the typed
+string to a constant, and the game sits in the same file, so anyone willing to
+open View Source walks straight in.
+
+This build does it properly. The game payload — the JS bundle and the
+base64 wasm — is sealed with **AES-256-GCM** under a key derived from the
+password with **PBKDF2-SHA256, 250,000 iterations**. The published page carries
+only a random salt, an IV, and ciphertext. Without the password there is
+nothing to run and nothing to read; a wrong guess fails the GCM tag check.
+
+What it does *not* do is stop someone who has the password from decrypting the
+payload once and passing it on. It is a lock on the door, not DRM.
+
+The password is never committed. `build.sh` reads it from `$WB_PASSWORD` or a
+gitignored `.password` file; with neither, it produces an unlocked build and
+says so. `tools/test_lock.js` then checks the result actually protects
+something — that no game code, level name or the password itself survives in
+the page, that the real password opens it, and that near-miss passwords don't.
 
 ## Building
 
@@ -96,8 +121,9 @@ tooling.
 
 ```sh
 rustup target add wasm32-unknown-unknown
-npm install          # @napi-rs/canvas, for the offline renderer and tests
-./build.sh           # -> dist/willsbackyard.html
+npm install                          # @napi-rs/canvas, for the renderer and tests
+echo -n 'your-password' > .password  # omit for an unlocked build
+./build.sh                           # -> dist/willsbackyard.html, docs/index.html
 ```
 
 `build.sh` will not produce a build unless the tests pass.
@@ -105,7 +131,7 @@ npm install          # @napi-rs/canvas, for the offline renderer and tests
 ## Tests
 
 The interesting problem in a game like this is that most bugs are *visual*, and
-the usual tooling can't see them. Three things cover it:
+the usual tooling cannot see them. Four things cover it:
 
 **`rust/src/reach_test.rs`** — derives the jump arc from the actual physics
 constants and asserts every platform and every pickup is reachable. A single
@@ -118,6 +144,9 @@ check: `rot = 0` and `rot = 1e-7` must produce the same corners. `gl.js` has a
 fast path for unrotated quads and a general path for the rest, and a sign error
 in the general one flipped every *rotated* sprite upside down while leaving
 static scenery perfectly correct.
+
+**`tools/test_lock.js`** — confirms a protected build protects something: no
+payload in the clear, the right password opens it, near-miss passwords do not.
 
 **`tools/test_core.js`** — runs the wasm core headlessly for 90 simulated
 seconds per level with synthetic input, watching for NaNs, wedged states and

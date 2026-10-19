@@ -9,3 +9,6 @@ build/
 
 # macOS
 .DS_Store
+
+# The page password -- never commit this
+.password
