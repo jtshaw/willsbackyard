@@ -258,6 +258,8 @@ pub enum Food {
     Cookie,
     Juice,
     Chips,
+    Pizza,
+    Candy,
 }
 
 impl Food {
@@ -272,6 +274,8 @@ impl Food {
             Food::Cookie => S_FOOD_COOKIE,
             Food::Juice => S_FOOD_JUICE,
             Food::Chips => S_FOOD_CHIPS,
+            Food::Pizza => S_FOOD_PIZZA,
+            Food::Candy => S_FOOD_CANDY,
         }
     }
     pub fn score(self) -> i32 {
@@ -281,7 +285,8 @@ impl Food {
             Food::Cheese => 50,
             Food::Marshmallow => 60,
             Food::Bacon => 75,
-            Food::Cookie | Food::Juice | Food::Chips => 120,
+            Food::Cookie | Food::Juice | Food::Chips | Food::Candy => 120,
+            Food::Pizza => 150,
             Food::HotDog => 200,
         }
     }
@@ -300,6 +305,8 @@ impl Food {
             Food::Cookie => 70.0,
             Food::Juice => 72.0,
             Food::Chips => 84.0,
+            Food::Pizza => 82.0,
+            Food::Candy => 74.0,
         }
     }
     pub fn label(self) -> u32 {
@@ -314,6 +321,8 @@ impl Food {
             Food::Cookie => 6,
             Food::Juice => 7,
             Food::Chips => 8,
+            Food::Pizza => 9,
+            Food::Candy => 10,
         }
     }
 }
@@ -367,7 +376,18 @@ pub enum NpcKind {
     /// Ambusher. Waits inside an obstacle until the rat is close, then bursts
     /// out to rob it -- or to eat it, if there is nothing worth taking.
     Raccoon,
+    /// A party guest in costume. Moves like Will when given a speed, stands
+    /// and chats when not -- and dances, blind and deaf, on the drop.
+    Guest,
+    /// Behind the decks. Scenery that keeps time; never looks up.
+    Dj,
 }
+
+/// Which costume a guest is wearing; indexes the outfit table in puppet.rs.
+pub const COSTUME_CRYPTO: u8 = 0;
+pub const COSTUME_DOCTOR: u8 = 1;
+pub const COSTUME_PILOT: u8 = 2;
+pub const COSTUME_TOGA: u8 = 3;
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum NpcState {
@@ -408,6 +428,8 @@ pub struct Npc {
     pub trigger: f32,
     /// Raccoons only: made off with a piece of loot.
     pub carrying: bool,
+    /// Guests only: see COSTUME_*.
+    pub costume: u8,
 }
 
 impl Npc {
@@ -419,6 +441,9 @@ impl Npc {
             NpcKind::Popcorn => (330.0, 620.0, 0.62, 150.0),
             // Short sight: they hunt by ambush, not by scanning the yard.
             NpcKind::Raccoon => (430.0, 300.0, 0.7, 120.0),
+            // Distracted by each other, so a little short-sighted.
+            NpcKind::Guest => (170.0, 680.0, 0.48, 430.0),
+            NpcKind::Dj => (0.0, 0.0, 0.1, 430.0),
         };
         Npc {
             kind,
@@ -432,6 +457,7 @@ impl Npc {
             state: match kind {
                 NpcKind::WillBusy | NpcKind::WillLight => NpcState::Pause,
                 NpcKind::Raccoon => NpcState::Hiding,
+                NpcKind::Dj => NpcState::Distracted,
                 _ => NpcState::Patrol,
             },
             state_t: 0.0,
@@ -444,7 +470,12 @@ impl Npc {
             eye_h: eye,
             trigger: 430.0,
             carrying: false,
+            costume: 0,
         }
+    }
+    pub fn costume(mut self, c: u8) -> Npc {
+        self.costume = c;
+        self
     }
     /// How close the rat must get before this raccoon breaks cover.
     pub fn trigger(mut self, d: f32) -> Npc {
@@ -589,6 +620,23 @@ pub struct Cover {
 // The level itself
 // ---------------------------------------------------------------------------
 
+/// A glow added back on top of the night scrim -- string lights, lanterns.
+#[derive(Clone, Copy)]
+pub struct Light {
+    pub pos: V2,
+    pub size: f32,
+    pub tint: (f32, f32, f32),
+}
+
+/// The party's DJ set runs on this loop: five bars of build, three bars of
+/// drop, at a tempo only 1999 could love. web/main.js plays the music from
+/// the same clock, so the snare roll lands exactly when the guests stop
+/// looking.
+pub const PARTY_BPM: f32 = 138.0;
+pub const PARTY_BAR: f32 = 240.0 / PARTY_BPM;
+pub const PARTY_DROP_AT: f32 = 5.0 * PARTY_BAR;
+pub const PARTY_CYCLE: f32 = 8.0 * PARTY_BAR;
+
 #[derive(Clone, Copy, PartialEq)]
 pub enum Mood {
     Afternoon,
@@ -620,6 +668,15 @@ pub struct Level {
     pub dark: f32,
     pub sky: u16,
     pub ambient: (f32, f32, f32),
+    pub lights: Vec<Light>,
+    /// Chaos at the Party only: the DJ set is running.
+    pub party: bool,
+    /// Seconds into the DJ set; advanced by the game tick while playing.
+    pub party_t: f32,
+    /// Where the lasers come from.
+    pub booth: V2,
+    /// Dance floor tiles: (x0, x1, surface y).
+    pub dance_floor: (f32, f32, f32),
 }
 
 impl Level {
@@ -651,7 +708,23 @@ impl Level {
             dark,
             sky,
             ambient,
+            lights: Vec::new(),
+            party: false,
+            party_t: 0.0,
+            booth: v2(0.0, 0.0),
+            dance_floor: (0.0, 0.0, 0.0),
         }
+    }
+
+    /// On the drop the whole crowd dances: nobody watches the floor and the
+    /// music drowns out anything a rat could do.
+    pub fn party_drop(&self) -> bool {
+        self.party && (self.party_t % PARTY_CYCLE) >= PARTY_DROP_AT
+    }
+
+    /// Beats elapsed in the set, for anything that bounces in time.
+    pub fn party_beat(&self) -> f32 {
+        self.party_t * PARTY_BPM / 60.0
     }
 
     pub fn solid(&mut self, s: Solid) -> &mut Self {

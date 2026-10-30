@@ -161,10 +161,17 @@ async function main() {
     // Repro of the reported frame: dog + suspicion marker on level 1.
     ['20_repro_marker',   0, 5750,    0, 150, 2],
     // Trash Night: the ambush, in both camera modes.
-    ['21_trash_sleep',    5, 2200, -300, 40, 0],
-    ['22_trash_ambush',   5,  980,    0, 70, 2],
-    ['23_trash_ambush_IR',5,  980,    0, 70, 2, true],
-    ['24_trash_gauntlet', 5, 9350,    0, 80, 2, true],
+    ['21_trash_sleep',    6, 2200, -300, 40, 0],
+    ['22_trash_ambush',   6,  980,    0, 70, 2],
+    ['23_trash_ambush_IR',6,  980,    0, 70, 2, true],
+    ['24_trash_gauntlet', 6, 9350,    0, 80, 2, true],
+    // Chaos at the Party: the crossing, the bar, the light well, the decks.
+    ['25_party_cable',    5, 1500,  -90, 30, 0],
+    ['26_party_bar',      5, 3900,    0, 40, 0],
+    ['27_party_well',     5, 5600, -200, 40, 0],
+    ['28_party_decks',    5, 7250, -500, 40, 0],
+    ['29_party_drop',     5, 8300, -150, 560, 0],
+    ['30_party_hedge',    5, 9500, -150, 40, 0],
   ];
 
   if (mode === 'repro') {

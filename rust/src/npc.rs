@@ -48,7 +48,7 @@ pub fn visibility(n: &Npc, lvl: &Level, p: &Player, hidden: bool) -> f32 {
         return 0.0;
     }
     // Raccoons ambush by proximity; they have no vision cone to speak of.
-    if n.kind == NpcKind::Raccoon {
+    if n.kind == NpcKind::Raccoon || n.kind == NpcKind::Dj {
         return 0.0;
     }
     let eye = n.eye();
@@ -115,11 +115,16 @@ pub fn update(lvl: &mut Level, p: &mut Player, dt: f32, t: f32, player_loot: i32
     // stays happy while we mutate the npc list.
     let player_pos = p.pos;
     let player_center = p.center();
+    let drop = lvl.party_drop();
+    // Guests who shrieked this frame; the crowd nearby comes running.
+    let mut shrieks: Vec<f32> = Vec::new();
 
     for i in 0..lvl.npcs.len() {
         let (vis, aud) = {
             let n = &lvl.npcs[i];
-            (visibility(n, lvl, p, hidden), audibility(n, p))
+            // Nothing a rat does is audible over the drop.
+            let muffle = if drop { 0.1 } else { 1.0 };
+            (visibility(n, lvl, p, hidden), audibility(n, p) * muffle)
         };
         let n = &mut lvl.npcs[i];
         n.state_t += dt;
@@ -127,6 +132,13 @@ pub fn update(lvl: &mut Level, p: &mut Player, dt: f32, t: f32, player_loot: i32
         n.bark = (n.bark - dt).max(0.0);
 
         let was_chasing = n.state == NpcState::Chase;
+
+        // The DJ only ever looks at the decks.
+        if n.kind == NpcKind::Dj {
+            n.state = NpcState::Distracted;
+            n.suspicion = 0.0;
+            continue;
+        }
 
         // ---- raccoons: a self-contained ambush loop -------------------------
         if n.kind == NpcKind::Raccoon {
@@ -235,6 +247,25 @@ pub fn update(lvl: &mut Level, p: &mut Player, dt: f32, t: f32, player_loot: i32
                 }
                 n.look = (t * 1.1).sin() * 0.12;
             }
+            NpcKind::Guest => {
+                if drop && n.state != NpcState::Chase {
+                    // Everybody dances. Whoever was suspicious forgets it.
+                    n.state = NpcState::Distracted;
+                    n.state_t = 0.0;
+                    n.suspicion = (n.suspicion - CALM_RATE * 2.0 * dt).max(0.0);
+                } else if n.speed <= 0.0 {
+                    // Mid-conversation, glancing round now and then.
+                    let cycle = (t * 0.36 + n.home.x * 0.0013) % 1.0;
+                    if cycle < 0.55 {
+                        if n.state != NpcState::Chase {
+                            n.state = NpcState::Distracted;
+                        }
+                    } else if n.state == NpcState::Distracted {
+                        n.state = NpcState::Pause;
+                    }
+                }
+                n.look = (t * 1.3 + n.home.x * 0.002).sin() * 0.14;
+            }
             _ => {
                 n.look = (t * 1.6 + n.home.x * 0.002).sin() * 0.16;
             }
@@ -259,6 +290,9 @@ pub fn update(lvl: &mut Level, p: &mut Player, dt: f32, t: f32, player_loot: i32
             n.state_t = 0.0;
             n.bark = 0.9;
             res.new_alert = true;
+            if n.kind == NpcKind::Guest {
+                shrieks.push(n.pos.x);
+            }
             if n.kind == NpcKind::Popcorn {
                 res.bark = true;
             }
@@ -270,7 +304,7 @@ pub fn update(lvl: &mut Level, p: &mut Player, dt: f32, t: f32, player_loot: i32
         res.tension = res.tension.max(n.suspicion / ALERT);
 
         // ---- movement ------------------------------------------------------
-        let can_move = !matches!(n.kind, NpcKind::WillBusy | NpcKind::WillLight);
+        let can_move = !matches!(n.kind, NpcKind::WillBusy | NpcKind::WillLight) && n.speed > 0.0;
         match n.state {
             NpcState::Chase => {
                 if can_move {
@@ -286,8 +320,10 @@ pub fn update(lvl: &mut Level, p: &mut Player, dt: f32, t: f32, player_loot: i32
                     }
                     n.vel.x = dir * chase_speed;
                 }
-                // Give up once the trail has gone cold.
-                if vis <= 0.0 && aud <= 0.02 {
+                // Give up once the trail has gone cold. A guest who heard the
+                // shriek keeps looking for a while regardless.
+                let hunting = n.kind == NpcKind::Guest && n.state_t < 6.0;
+                if vis <= 0.0 && aud <= 0.02 && !hunting {
                     n.suspicion -= CALM_RATE * 0.7 * dt;
                     if n.suspicion < 0.45 {
                         n.state = NpcState::Return;
@@ -373,6 +409,24 @@ pub fn update(lvl: &mut Level, p: &mut Player, dt: f32, t: f32, player_loot: i32
         }
 
         let _ = was_chasing;
+    }
+
+    // A guest who spots a rat screams about it, and anyone on their feet
+    // nearby joins the hunt -- unless they are lost in the drop.
+    if !drop {
+        for x in shrieks {
+            for n in lvl.npcs.iter_mut() {
+                if n.kind == NpcKind::Guest
+                    && n.speed > 0.0
+                    && n.state != NpcState::Chase
+                    && (n.pos.x - x).abs() < 2400.0
+                {
+                    n.state = NpcState::Chase;
+                    n.state_t = 0.0;
+                    n.suspicion = ALERT;
+                }
+            }
+        }
     }
 
     res

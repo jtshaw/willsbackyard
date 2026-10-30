@@ -2,7 +2,7 @@
 // Sprite ids match the insertion order of ART in web/art/*.js.
 #![allow(dead_code)]
 
-pub const SPRITE_COUNT: usize = 130;
+pub const SPRITE_COUNT: usize = 172;
 
 pub const S_RAT_BODY: u16 = 0;
 pub const S_RAT_HEAD: u16 = 1;
@@ -134,6 +134,48 @@ pub const S_FOLD_SEAM: u16 = 126;
 pub const S_SPLASH_BURST: u16 = 127;
 pub const S_IR_SCAN: u16 = 128;
 pub const S_IR_NOISE: u16 = 129;
+pub const S_GUEST_CRYPTO_HEAD: u16 = 130;
+pub const S_GUEST_CRYPTO_TORSO: u16 = 131;
+pub const S_GUEST_CRYPTO_ARM: u16 = 132;
+pub const S_GUEST_CRYPTO_FOREARM: u16 = 133;
+pub const S_GUEST_CRYPTO_LEG: u16 = 134;
+pub const S_GUEST_CRYPTO_SHIN: u16 = 135;
+pub const S_GUEST_DOCTOR_HEAD: u16 = 136;
+pub const S_GUEST_DOCTOR_TORSO: u16 = 137;
+pub const S_GUEST_DOCTOR_ARM: u16 = 138;
+pub const S_GUEST_DOCTOR_FOREARM: u16 = 139;
+pub const S_GUEST_DOCTOR_LEG: u16 = 140;
+pub const S_GUEST_DOCTOR_SHIN: u16 = 141;
+pub const S_GUEST_PILOT_HEAD: u16 = 142;
+pub const S_GUEST_PILOT_TORSO: u16 = 143;
+pub const S_GUEST_PILOT_ARM: u16 = 144;
+pub const S_GUEST_PILOT_FOREARM: u16 = 145;
+pub const S_GUEST_PILOT_LEG: u16 = 146;
+pub const S_GUEST_PILOT_SHIN: u16 = 147;
+pub const S_GUEST_TOGA_HEAD: u16 = 148;
+pub const S_GUEST_TOGA_TORSO: u16 = 149;
+pub const S_GUEST_TOGA_ARM: u16 = 150;
+pub const S_GUEST_TOGA_FOREARM: u16 = 151;
+pub const S_GUEST_TOGA_LEG: u16 = 152;
+pub const S_GUEST_TOGA_SHIN: u16 = 153;
+pub const S_GUEST_SHOUT: u16 = 154;
+pub const S_GUEST_PHONE: u16 = 155;
+pub const S_GUEST_CUP: u16 = 156;
+pub const S_GUEST_SYRINGE: u16 = 157;
+pub const S_DJ_HEAD: u16 = 158;
+pub const S_DJ_TORSO: u16 = 159;
+pub const S_DJ_ARM: u16 = 160;
+pub const S_DJ_FOREARM: u16 = 161;
+pub const S_DJ_BOOTH: u16 = 162;
+pub const S_DJ_BANNER: u16 = 163;
+pub const S_SPEAKER: u16 = 164;
+pub const S_LANTERN: u16 = 165;
+pub const S_PARTY_BULB: u16 = 166;
+pub const S_COUCH: u16 = 167;
+pub const S_CAULDRON: u16 = 168;
+pub const S_PLANTER: u16 = 169;
+pub const S_FOOD_PIZZA: u16 = 170;
+pub const S_FOOD_CANDY: u16 = 171;
 
 /// Authoring size of each sprite, in atlas pixels.
 pub const SPRITE_SIZE: [[f32; 2]; SPRITE_COUNT] = [
@@ -267,6 +309,48 @@ pub const SPRITE_SIZE: [[f32; 2]; SPRITE_COUNT] = [
     [168.0, 168.0],
     [8.0, 64.0],
     [128.0, 128.0],
+    [92.0, 106.0],
+    [96.0, 112.0],
+    [30.0, 60.0],
+    [28.0, 58.0],
+    [34.0, 66.0],
+    [32.0, 64.0],
+    [92.0, 106.0],
+    [96.0, 112.0],
+    [30.0, 60.0],
+    [28.0, 58.0],
+    [34.0, 66.0],
+    [32.0, 64.0],
+    [92.0, 106.0],
+    [96.0, 112.0],
+    [30.0, 60.0],
+    [28.0, 58.0],
+    [34.0, 66.0],
+    [32.0, 64.0],
+    [92.0, 106.0],
+    [96.0, 112.0],
+    [30.0, 60.0],
+    [28.0, 58.0],
+    [34.0, 66.0],
+    [32.0, 64.0],
+    [30.0, 24.0],
+    [26.0, 42.0],
+    [30.0, 36.0],
+    [70.0, 24.0],
+    [92.0, 106.0],
+    [96.0, 112.0],
+    [30.0, 60.0],
+    [28.0, 58.0],
+    [300.0, 170.0],
+    [340.0, 64.0],
+    [110.0, 190.0],
+    [64.0, 84.0],
+    [22.0, 28.0],
+    [250.0, 120.0],
+    [120.0, 96.0],
+    [240.0, 80.0],
+    [80.0, 70.0],
+    [80.0, 44.0],
 ];
 
 #[inline]

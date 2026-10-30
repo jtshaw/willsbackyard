@@ -31,10 +31,11 @@ available for private builds; see [Password protection](#password-protection).
 | `M` | Mute |
 | `Esc` | Pause |
 | `B` | Report a bug |
+| `Shift` + `D` | On level select: dev mode, every level unlocked |
 
 Gamepads work. On a phone, play in landscape — there's an on-screen d-pad.
 
-## The five levels
+## The levels
 
 | # | Level | The idea |
 | --- | --- | --- |
@@ -43,7 +44,8 @@ Gamepads work. On a phone, play in landscape — there's an on-screen d-pad.
 | 3 | The Playhouse | Swings as pendulum platforms, a wave slide you can climb back up, a rope net, and the kids' snacks. |
 | 4 | Under the Hutch | Pitch dark. Every trap is baited — lift the bait without springing it, and stay out of the flashlight. |
 | 5 | Night Run | Everyone is awake. Run. |
-| 6 | Trash Night | Will and Popcorn are asleep. The raccoons are not. |
+| 6 | Chaos at the Party | A rooftop Halloween party next door, DJ Benny Blu3 on the decks. Guests can't see or hear you while they dance to the drop. |
+| 7 | Trash Night | Will and Popcorn are asleep. The raccoons are not. |
 
 <p align="center">
   <img src="docs/screenshots/07_deck_grill.jpg" width="49%" alt="The deck and the grill">
@@ -68,6 +70,16 @@ raccoon shows nothing but a pair of eyes in normal vision — but its body heat
 reads straight through the bin it is sitting in, so infrared tells you which
 containers are occupied before you walk into them.
 
+### The party
+
+Chaos at the Party happens on the roofs next door, with no ground under you,
+so a missed jump means falling. The guests (a crypto bro, a sexy doctor, a
+fighter pilot and a toga bro) stand around chatting or do laps of the dance
+floor. DJ Benny Blu3's set runs five bars of build, then three bars of drop.
+On the drop everyone dances: nobody looks at the floor, and the music drowns
+out any noise you make. The 138 BPM trance soundtrack runs on the same clock
+as the game, so the snare roll always lands right on the drop.
+
 ### Infrared
 
 The dark levels carry a thermal camera on `I`. Warm bodies, the grill and
@@ -87,7 +99,7 @@ sprite quads each frame. JavaScript owns the GPU and the DOM. Nothing else.
 
 ```
 rust/src/          the game: physics, AI, levels, scene composition
-  levels.rs        all five levels, as data
+  levels.rs        every level, as data
   npc.rs           vision cones, suspicion, the chase
   puppet.rs        characters as articulated paper cut-outs
   draw.rs          the draw list, and the infrared colour remap

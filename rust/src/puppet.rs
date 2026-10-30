@@ -552,3 +552,216 @@ pub fn draw_raccoon(dl: &mut DrawList, n: &Npc, t: f32) {
                  (t * 9.0).sin() * 0.2, layer::ACTOR_FRONT);
     }
 }
+
+// ---------------------------------------------------------------------------
+// Party guests -- Will's skeleton in somebody else's terrible costume
+// ---------------------------------------------------------------------------
+
+/// Every costume is authored at Will's part sizes, so his joints fit it.
+struct Outfit {
+    head: u16,
+    torso: u16,
+    arm: u16,
+    forearm: u16,
+    leg: u16,
+    shin: u16,
+    prop: u16,
+    prop_s: f32,
+}
+
+fn outfit(costume: u8) -> Outfit {
+    match costume {
+        COSTUME_DOCTOR => Outfit {
+            head: S_GUEST_DOCTOR_HEAD,
+            torso: S_GUEST_DOCTOR_TORSO,
+            arm: S_GUEST_DOCTOR_ARM,
+            forearm: S_GUEST_DOCTOR_FOREARM,
+            leg: S_GUEST_DOCTOR_LEG,
+            shin: S_GUEST_DOCTOR_SHIN,
+            prop: S_GUEST_SYRINGE,
+            prop_s: 0.9,
+        },
+        COSTUME_PILOT => Outfit {
+            head: S_GUEST_PILOT_HEAD,
+            torso: S_GUEST_PILOT_TORSO,
+            arm: S_GUEST_PILOT_ARM,
+            forearm: S_GUEST_PILOT_FOREARM,
+            leg: S_GUEST_PILOT_LEG,
+            shin: S_GUEST_PILOT_SHIN,
+            prop: S_BOTTLE,
+            prop_s: 0.42,
+        },
+        COSTUME_TOGA => Outfit {
+            head: S_GUEST_TOGA_HEAD,
+            torso: S_GUEST_TOGA_TORSO,
+            arm: S_GUEST_TOGA_ARM,
+            forearm: S_GUEST_TOGA_FOREARM,
+            leg: S_GUEST_TOGA_LEG,
+            shin: S_GUEST_TOGA_SHIN,
+            prop: S_GUEST_CUP,
+            prop_s: 0.9,
+        },
+        _ => Outfit {
+            head: S_GUEST_CRYPTO_HEAD,
+            torso: S_GUEST_CRYPTO_TORSO,
+            arm: S_GUEST_CRYPTO_ARM,
+            forearm: S_GUEST_CRYPTO_FOREARM,
+            leg: S_GUEST_CRYPTO_LEG,
+            shin: S_GUEST_CRYPTO_SHIN,
+            prop: S_GUEST_PHONE,
+            prop_s: 0.85,
+        },
+    }
+}
+
+impl Rig {
+    /// Like `limb`, but free to swing overhead -- arms in the air on the drop.
+    pub fn reach(&self, dl: &mut DrawList, sprite: u16, jx: f32, jy: f32, s: f32, angle: f32, lay: i32) {
+        let h = sprite_h(sprite) * s * self.scale;
+        let a = self.ang(angle);
+        let joint = self.pt(jx, jy);
+        let c = joint.add(v2(0.0, h * 0.5).rot(a));
+        dl.push(
+            Sp::new(sprite, c.x, c.y)
+                .scale(s * self.scale)
+                .rot(a)
+                .flip_x(self.facing < 0.0)
+                .shade(self.shade)
+                .alpha(self.alpha)
+                .layer(lay),
+        );
+    }
+}
+
+/// An arm from the shoulder: upper arm, forearm, and the prop in the hand.
+/// Returns the hand position in rig-local units.
+fn guest_arm(rig: &Rig, dl: &mut DrawList, o: &Outfit, x: f32, shoulder_y: f32, arm_a: f32, fore_a: f32, lay: i32) -> V2 {
+    rig.reach(dl, o.arm, x, shoulder_y, 1.0, arm_a, lay);
+    let ex = x + arm_a.sin() * W_UPPER_ARM;
+    let ey = shoulder_y + arm_a.cos() * W_UPPER_ARM;
+    rig.reach(dl, o.forearm, ex, ey, 1.0, fore_a, lay);
+    v2(ex + fore_a.sin() * (W_FOREARM - 6.0), ey + fore_a.cos() * (W_FOREARM - 6.0))
+}
+
+pub fn draw_guest(dl: &mut DrawList, n: &Npc, t: f32, dancing: bool, beat: f32) {
+    let o = outfit(n.costume);
+    let chasing = n.state == NpcState::Chase;
+    let dance = dancing && n.state == NpcState::Distracted;
+    let chatting = !dance && n.state == NpcState::Distracted;
+    let moving = n.vel.x.abs() > 8.0;
+    // Everyone is a little off the beat, which is the point of a party.
+    let off = n.home.x * 0.0021;
+    let phase = n.anim * if chasing { 10.0 } else { 6.6 };
+
+    let (swing, bob) = if dance {
+        let b = (beat * PI + off).sin();
+        (b * 0.35, b.abs() * 16.0)
+    } else if moving {
+        (phase.sin(), (phase * 2.0).sin().abs() * 6.0)
+    } else {
+        ((t * 1.4 + off).sin() * 0.08, (t * 1.3 + off).sin() * 2.0)
+    };
+
+    let mut rig = Rig::new(n.pos, n.facing, WILL_SCALE);
+    rig.tilt = if chasing {
+        0.09 * n.facing
+    } else if dance {
+        (beat * PI * 0.5 + off).sin() * 0.07
+    } else {
+        0.0
+    };
+
+    let hip_y = W_HIP - bob * 0.5;
+    let torso_y = W_TORSO_C - bob;
+    let shoulder_y = W_SHOULDER - bob;
+    let head_y = W_HEAD_C - bob;
+
+    let leg = |rig: &Rig, dl: &mut DrawList, x: f32, a: f32, lay: i32| {
+        rig.limb(dl, o.leg, x, hip_y, 1.0, a, lay);
+        let knee_x = x + a.sin() * (W_KNEE - W_HIP);
+        let knee_y = hip_y + a.cos() * (W_KNEE - W_HIP);
+        rig.limb(dl, o.shin, knee_x, knee_y, 1.0, a * 0.35 + 0.06, lay);
+    };
+
+    // ---- far side ----------------------------------------------------------
+    rig.shade = 0.74;
+    leg(&rig, dl, -10.0, -swing * 0.5, layer::ACTOR_BACK);
+    if dance {
+        // Hands up for the drop, waving out of time with the other one.
+        let a = PI - 0.45 + (beat * PI + off + 1.3).sin() * 0.3;
+        guest_arm(&rig, dl, &o, -16.0, shoulder_y, a, a + 0.25, layer::ACTOR_BACK);
+    } else {
+        guest_arm(&rig, dl, &o, -16.0, shoulder_y, swing * 0.6, swing * 0.6 + 0.2, layer::ACTOR_BACK);
+    }
+    rig.shade = 1.0;
+
+    // ---- torso and head ----------------------------------------------------
+    rig.part(dl, o.torso, 0.0, torso_y, 1.0, p_lean(chasing, n.facing), layer::ACTOR);
+    let look = if dance {
+        (beat * PI + off).sin() * 0.16
+    } else {
+        n.look * 0.35 + if chasing { 0.08 } else { 0.0 }
+    };
+    rig.part(dl, o.head, 8.0, head_y, 1.0, look, layer::ACTOR_FRONT);
+    // Spotted you: the same face, now shrieking.
+    if chasing || n.suspicion > 0.6 {
+        rig.part(dl, S_GUEST_SHOUT, 11.0, head_y + 26.0, 1.0, look, layer::ACTOR_FRONT + 1);
+    }
+
+    // ---- near side ---------------------------------------------------------
+    leg(&rig, dl, 12.0, swing * 0.55, layer::ACTOR_FRONT);
+    let (arm_a, fore_a) = if chasing {
+        // Pointing at the rat.
+        (-1.35 + (phase * 1.3).sin() * 0.1, -1.5)
+    } else if dance {
+        let a = PI - 0.35 + (beat * PI + off).sin() * 0.35;
+        (a, a - 0.2)
+    } else if chatting {
+        // Drink (or phone) up at face height.
+        (-0.35, -2.5)
+    } else {
+        (-swing * 0.6, -swing * 0.6 - 0.3)
+    };
+    let hand = guest_arm(&rig, dl, &o, 18.0, shoulder_y, arm_a, fore_a, layer::ACTOR_FRONT);
+    rig.part(dl, o.prop, hand.x + 4.0, hand.y - 6.0, o.prop_s, if dance { -0.4 } else { 0.0 }, layer::ACTOR_FRONT + 1);
+}
+
+/// DJ Benny Blu3, behind the decks: nodding on every beat, one hand on the
+/// mixer, and both in the air when it drops.
+pub fn draw_dj(dl: &mut DrawList, n: &Npc, beat: f32, drop: bool) {
+    let b = (beat * PI).sin();
+    let bob = b.abs() * if drop { 14.0 } else { 6.0 };
+    let rig = Rig::new(n.pos, n.facing, WILL_SCALE);
+    let shoulder_y = W_SHOULDER - bob;
+
+    let mut back = Rig::new(n.pos, n.facing, WILL_SCALE);
+    back.shade = 0.74;
+    if drop {
+        let a = PI - 0.3 + (beat * PI * 0.5).sin() * 0.25;
+        back.reach(dl, S_DJ_ARM, -16.0, shoulder_y, 1.0, a, layer::ACTOR_BACK);
+        let ex = -16.0 + a.sin() * W_UPPER_ARM;
+        let ey = shoulder_y + a.cos() * W_UPPER_ARM;
+        back.reach(dl, S_DJ_FOREARM, ex, ey, 1.0, a + 0.2, layer::ACTOR_BACK);
+    } else {
+        // Holding one ear of the headphones to the head.
+        back.reach(dl, S_DJ_ARM, -16.0, shoulder_y, 1.0, -0.6, layer::ACTOR_BACK);
+        let ex = -16.0 + (-0.6f32).sin() * W_UPPER_ARM;
+        let ey = shoulder_y + (-0.6f32).cos() * W_UPPER_ARM;
+        back.reach(dl, S_DJ_FOREARM, ex, ey, 1.0, PI - 0.2, layer::ACTOR_BACK);
+    }
+
+    rig.part(dl, S_DJ_TORSO, 0.0, W_TORSO_C - bob, 1.0, 0.0, layer::ACTOR);
+    rig.part(dl, S_DJ_HEAD, 8.0, W_HEAD_C - bob, 1.0, b * 0.08 + 0.1, layer::ACTOR_FRONT);
+
+    // Near hand works the mixer; on the drop it punches the air instead.
+    let (a, f) = if drop {
+        let a = PI - 0.5 + (beat * PI).sin() * 0.3;
+        (a, a - 0.15)
+    } else {
+        (0.55 + b * 0.08, 1.35 + b * 0.12)
+    };
+    rig.reach(dl, S_DJ_ARM, 18.0, shoulder_y, 1.0, a, layer::ACTOR_FRONT);
+    let ex = 18.0 + a.sin() * W_UPPER_ARM;
+    let ey = shoulder_y + a.cos() * W_UPPER_ARM;
+    rig.reach(dl, S_DJ_FOREARM, ex, ey, 1.0, f, layer::ACTOR_FRONT);
+}

@@ -19,6 +19,8 @@ mod sprites;
 
 #[cfg(test)]
 mod reach_test;
+#[cfg(test)]
+mod party_test;
 
 use draw::*;
 use level::*;
@@ -47,6 +49,8 @@ pub mod ev {
     pub const STEP: u32 = 1 << 13;
     pub const CHECKPOINT: u32 = 1 << 14;
     pub const STOLEN: u32 = 1 << 15;
+    /// The party's beat just dropped.
+    pub const DROP: u32 = 1 << 16;
 }
 
 // ---------------------------------------------------------------------------
@@ -185,7 +189,7 @@ impl Game {
         self.phase_t = 0.0;
         self.tension = 0.0;
         // Trash Night is built around thermal, so it opens in it.
-        self.vision = if self.level_index == 5 { VISION_IR } else { VISION_NORMAL };
+        self.vision = if self.level_index == 6 { VISION_IR } else { VISION_NORMAL };
         let c = self.p.center();
         self.cam = v2(c.x, c.y - 90.0);
         self.cam_target = self.cam;
@@ -206,6 +210,8 @@ impl Game {
             n.suspicion = 0.0;
             n.state = match n.kind {
                 NpcKind::WillBusy | NpcKind::WillLight => NpcState::Pause,
+                NpcKind::Dj => NpcState::Distracted,
+                NpcKind::Guest if n.speed <= 0.0 => NpcState::Pause,
                 _ => NpcState::Patrol,
             };
             n.pos.x = n.home.x;
@@ -572,6 +578,14 @@ impl Game {
             m.update(self.time);
         }
 
+        if self.lvl.party {
+            let was_drop = self.lvl.party_drop();
+            self.lvl.party_t += dt;
+            if self.lvl.party_drop() && !was_drop {
+                self.events |= ev::DROP;
+            }
+        }
+
         let was_ground = self.p.on_ground;
         self.p.update(&self.lvl, input, dt);
 
@@ -691,6 +705,7 @@ impl Game {
         scene::draw_traps(dl, &self.lvl, self.time);
         scene::draw_pickups(dl, &self.lvl, self.time);
         scene::draw_npcs(dl, &self.lvl, self.time);
+        scene::draw_party(dl, &self.lvl);
 
         // The rat, with a contact shadow that tightens as it lands.
         if self.phase != Phase::Title {
@@ -863,6 +878,10 @@ impl Game {
             Mood::Underside => 3.0,
         };
         out[37] = self.vision as f32;
+        out[38] = if self.lvl.party_drop() { 1.0 } else { 0.0 };
+        out[39] = if self.lvl.party { 1.0 } else { 0.0 };
+        // Where the music should be, in seconds into the current cycle.
+        out[40] = self.lvl.party_t % PARTY_CYCLE;
     }
 }
 

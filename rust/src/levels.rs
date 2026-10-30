@@ -5,7 +5,7 @@ use crate::level::*;
 use crate::math::*;
 use crate::sprites::*;
 
-pub const LEVEL_COUNT: usize = 6;
+pub const LEVEL_COUNT: usize = 7;
 
 // ---------------------------------------------------------------------------
 // Building blocks
@@ -957,16 +957,288 @@ fn level_night_run() -> Level {
     l
 }
 
+// ---------------------------------------------------------------------------
+// 6 -- Chaos at the Party
+// The modern box house next door is throwing a rooftop Halloween party, DJ
+// Benny Blu3 is on the decks, and the snacks are in the hands of people
+// dressed as a sexy doctor and a crypto bro. Everything is up on the roofs:
+// miss a jump and it is a long way down. When the beat drops the whole crowd
+// dances -- nobody watches the floor and nobody can hear a thing -- so the
+// rhythm of the level is the rhythm of the set.
+// ---------------------------------------------------------------------------
+
+/// A flat-coloured plane: walls, glass, coping. The modern house is mostly
+/// these, which is exactly what a modern house is.
+fn slab(l: &mut Level, x0: f32, y0: f32, x1: f32, y1: f32, tint: (f32, f32, f32), lay: i32) {
+    l.decor.push(
+        Decor::new(S_WHITE, (x0 + x1) * 0.5, (y0 + y1) * 0.5)
+            .size(x1 - x0, y1 - y0)
+            .tint(tint.0, tint.1, tint.2)
+            .layer(lay),
+    );
+}
+
+/// Party lights strung between two points, sagging in the middle.
+fn string_lights(l: &mut Level, x0: f32, x1: f32, y: f32, sag: f32, seed: u32) {
+    const COLOURS: [(f32, f32, f32); 5] = [
+        (1.0, 0.55, 0.15),
+        (0.62, 0.3, 1.0),
+        (0.3, 1.0, 0.45),
+        (1.0, 0.3, 0.6),
+        (1.0, 0.85, 0.35),
+    ];
+    let n = ((x1 - x0) / 95.0) as i32;
+    for i in 0..=n {
+        let t = i as f32 / n as f32;
+        let x = x0 + (x1 - x0) * t;
+        let yy = y + sag * 4.0 * t * (1.0 - t);
+        let c = COLOURS[((i as u32 + seed) % 5) as usize];
+        l.decor.push(Decor::new(S_PARTY_BULB, x, yy + 18.0).scale(1.3).tint(c.0, c.1, c.2).layer(layer::BACKDROP + 4));
+        if i % 2 == 0 {
+            l.lights.push(Light { pos: v2(x, yy + 20.0), size: 190.0, tint: c });
+        }
+    }
+    // The wire itself, as short straight runs along the curve.
+    let segs = 12;
+    for i in 0..segs {
+        let ta = i as f32 / segs as f32;
+        let tb = (i + 1) as f32 / segs as f32;
+        let a = v2(x0 + (x1 - x0) * ta, y + sag * 4.0 * ta * (1.0 - ta));
+        let b = v2(x0 + (x1 - x0) * tb, y + sag * 4.0 * tb * (1.0 - tb));
+        let d = b.sub(a);
+        l.decor.push(
+            Decor::new(S_WHITE, (a.x + b.x) * 0.5, (a.y + b.y) * 0.5)
+                .size(d.len() + 2.0, 4.0)
+                .rot(d.y.atan2(d.x))
+                .tint(0.08, 0.08, 0.1)
+                .layer(layer::BACKDROP + 3),
+        );
+    }
+}
+
+/// One volume of the modern house, seen from the side: white render, a
+/// charcoal coping, a band of lit glass, and a dark timber roof deck on top.
+fn box_house(l: &mut Level, x0: f32, x1: f32, top: f32) {
+    let stucco = (0.88, 0.87, 0.84);
+    let charcoal = (0.17, 0.18, 0.2);
+    slab(l, x0, top + 20.0, x1, top + 1100.0, stucco, layer::GROUND);
+    slab(l, x0 - 12.0, top - 6.0, x1 + 12.0, top + 26.0, charcoal, layer::GROUND + 1);
+    // Ipe deck boards.
+    let n = ((x1 - x0) / 192.0).ceil() as i32;
+    for i in 0..n {
+        let x = x0 + (i as f32 + 0.5) * (x1 - x0) / n as f32;
+        l.decor.push(
+            Decor::new(S_DECK_PLANK, x, top - 8.0)
+                .size((x1 - x0) / n as f32 + 2.0, 22.0)
+                .tint(0.62, 0.5, 0.44)
+                .layer(layer::GROUND + 2),
+        );
+    }
+    // Floor-to-ceiling glazing on the storey below, lights on, nobody home.
+    slab(l, x0 + 80.0, top + 180.0, x1 - 80.0, top + 560.0, (0.98, 0.76, 0.42), layer::GROUND + 1);
+    let panes = ((x1 - x0 - 160.0) / 320.0) as i32;
+    for i in 0..=panes {
+        let x = x0 + 80.0 + i as f32 * (x1 - x0 - 160.0) / panes.max(1) as f32;
+        slab(l, x - 7.0, top + 180.0, x + 7.0, top + 560.0, charcoal, layer::GROUND + 2);
+    }
+    slab(l, x0 + 80.0, top + 172.0, x1 - 80.0, top + 188.0, charcoal, layer::GROUND + 2);
+    slab(l, x0 + 80.0, top + 552.0, x1 - 80.0, top + 568.0, charcoal, layer::GROUND + 2);
+    // Glass balustrade along the back of the deck.
+    l.decor.push(
+        Decor::new(S_WHITE, (x0 + x1) * 0.5, top - 110.0)
+            .size(x1 - x0, 210.0)
+            .tint(0.55, 0.78, 0.9)
+            .alpha(0.16)
+            .layer(layer::BACKDROP),
+    );
+    slab(l, x0, top - 222.0, x1, top - 210.0, charcoal, layer::BACKDROP + 1);
+}
+
+fn level_party() -> Level {
+    let mut l = Level::new(5, 5, Mood::Night);
+    // No ground anywhere below the roofs: a missed jump falls out of the world.
+    l.bounds = rect(-400.0, -2600.0, 10900.0, 3400.0);
+    l.spawn = v2(240.0, 0.0);
+    l.loot_required = 4;
+    l.dark = 0.42;
+    l.party = true;
+
+    const BOX1: f32 = 0.0;
+    const BOX2: f32 = -150.0;
+    const RISER: f32 = -330.0;
+
+    // --- Will's garage roof ---------------------------------------------
+    block(&mut l, -400.0, 0.0, 1700.0, 1400.0, Surface::Hidden);
+    slab(&mut l, -400.0, 20.0, 1300.0, 1100.0, (0.3, 0.37, 0.43), layer::GROUND);
+    l.decor.push(Decor::new(S_HOUSE_SIDING, 450.0, 520.0).size(1700.0, 1000.0).alpha(0.9).layer(layer::GROUND + 1));
+    l.decor.push(Decor::new(S_HOUSE_WINDOW, 650.0, 330.0).width(260.0).layer(layer::GROUND + 2));
+    slab(&mut l, -420.0, -10.0, 1320.0, 30.0, (0.22, 0.22, 0.25), layer::GROUND + 3);
+    house_h(&mut l, -1300.0, 600.0, 120.0, 0.55, true, 700.0);
+
+    // The party's own string lights run from Will's chimney to the coping
+    // next door -- the only way across.
+    plat(&mut l, 1300.0, -90.0, 600.0, Surface::Hidden);
+    string_lights(&mut l, 1300.0, 1900.0, -96.0, 0.0, 2);
+    l.decor.push(Decor::new(S_POST_WOOD, 1290.0, 0.0).size(30.0, 160.0).standing().shade(0.6).layer(layer::PROP));
+
+    // --- the first box: arrival, the bar, the lounge ---------------------
+    ground(&mut l, 1900.0, 5400.0, BOX1, Surface::Hidden);
+    box_house(&mut l, 1900.0, 5400.0, BOX1);
+
+    // Planter, then the stair bulkhead you can climb onto.
+    block(&mut l, 2060.0, -110.0, 240.0, 110.0, Surface::Hidden);
+    l.decor.push(Decor::new(S_PLANTER, 2180.0, BOX1).size(250.0, 116.0).standing().layer(layer::PROP));
+    l.decor.push(Decor::new(S_BUSH, 2180.0, -100.0).width(260.0).shade(0.7).standing().layer(layer::PROP - 1).sway(0.02));
+    block(&mut l, 2380.0, -360.0, 600.0, 360.0, Surface::Hidden);
+    slab(&mut l, 2380.0, -360.0, 2980.0, 0.0, (0.19, 0.2, 0.23), layer::PROP);
+    slab(&mut l, 2370.0, -372.0, 2990.0, -350.0, (0.1, 0.1, 0.12), layer::PROP + 1);
+    slab(&mut l, 2760.0, -300.0, 2900.0, 0.0, (1.0, 0.8, 0.48), layer::PROP + 1);
+    l.blockers.push(rect(2380.0, -360.0, 600.0, 360.0));
+
+    // The bar: walnut, an LED strip, bottles, and the crypto bro.
+    const BAR: f32 = -240.0;
+    block(&mut l, 3300.0, BAR, 600.0, 240.0, Surface::Hidden);
+    slab(&mut l, 3300.0, BAR + 20.0, 3900.0, 0.0, (0.34, 0.22, 0.15), layer::PROP);
+    slab(&mut l, 3300.0, BAR + 40.0, 3900.0, BAR + 48.0, (0.5, 0.8, 1.0), layer::PROP + 1);
+    l.decor.push(Decor::new(S_TABLE_TOP, 3600.0, BAR + 14.0).size(640.0, 34.0).layer(layer::PROP + 1));
+    for (i, &x) in [3360.0f32, 3420.0, 3830.0].iter().enumerate() {
+        l.decor.push(Decor::new(S_BOTTLE, x, BAR).scale(0.7 + i as f32 * 0.06).standing().layer(layer::PROP + 2));
+    }
+    l.decor.push(Decor::new(S_GUEST_CUP, 3480.0, BAR).scale(1.2).standing().layer(layer::PROP + 2));
+    l.blockers.push(rect(3300.0, BAR, 600.0, 240.0));
+    l.lights.push(Light { pos: v2(3600.0, BAR + 44.0), size: 520.0, tint: (0.3, 0.55, 1.0) });
+
+    // Lounge: a couch to hop onto (and hide under), and a high-top beside it.
+    l.decor.push(Decor::new(S_COUCH, 4350.0, BOX1).size(430.0, 206.0).standing().layer(layer::PROP));
+    plat(&mut l, 4180.0, -110.0, 340.0, Surface::Hidden);
+    cover(&mut l, 4170.0, -95.0, 360.0, 95.0, true);
+    const TOP: f32 = -330.0;
+    plat(&mut l, 4700.0, TOP, 220.0, Surface::Hidden);
+    l.decor.push(Decor::new(S_TABLE_TOP, 4810.0, TOP + 14.0).size(240.0, 30.0).layer(layer::PROP + 1));
+    l.decor.push(Decor::new(S_TABLE_LEG, 4810.0, BOX1).size(36.0, -TOP).standing().shade(0.5).layer(layer::PROP));
+
+    // --- the light well, crossed on swinging paper lanterns --------------
+    slab(&mut l, 5400.0, 20.0, 6000.0, 1100.0, (0.05, 0.05, 0.08), layer::GROUND - 1);
+    string_lights(&mut l, 5300.0, 6100.0, -900.0, 60.0, 4);
+    for (i, &x) in [5560.0f32, 5840.0].iter().enumerate() {
+        let m = l.movers.len();
+        l.movers.push(Mover::swing(x, -900.0, 700.0, 0.32, 2.8 + i as f32 * 0.3, i as f32 * 0.45));
+        l.solids.push(Solid::new(x - 70.0, -200.0, 140.0, 26.0, Surface::Hidden).thru().on(m));
+    }
+
+    // --- the second box: the decks and the dance floor --------------------
+    ground(&mut l, 6000.0, 10100.0, BOX2, Surface::Hidden);
+    box_house(&mut l, 6000.0, 10100.0, BOX2);
+
+    // The riser, two speaker stacks, and the booth itself.
+    block(&mut l, 6650.0, RISER, 1200.0, RISER.abs(), Surface::Hidden);
+    slab(&mut l, 6650.0, RISER, 7850.0, BOX2, (0.12, 0.12, 0.15), layer::PROP);
+    slab(&mut l, 6650.0, RISER, 7850.0, RISER + 10.0, (0.4, 0.65, 1.0), layer::PROP + 1);
+    for &x in &[6700.0f32, 7670.0] {
+        block(&mut l, x, -560.0, 130.0, 230.0, Surface::Hidden);
+        l.decor.push(Decor::new(S_SPEAKER, x + 65.0, RISER).size(136.0, 236.0).standing().layer(layer::PROP + 2));
+        l.blockers.push(rect(x, -560.0, 130.0, 230.0));
+    }
+    block(&mut l, 7100.0, -500.0, 300.0, 170.0, Surface::Hidden);
+    l.decor.push(Decor::new(S_DJ_BOOTH, 7250.0, RISER).size(310.0, 176.0).standing().layer(layer::ACTOR_FRONT + 3));
+    l.blockers.push(rect(7100.0, -500.0, 300.0, 170.0));
+    l.npcs.push(Npc::new(NpcKind::Dj, 7250.0, RISER));
+    l.booth = v2(7250.0, -520.0);
+    // The banner, on two poles behind the decks.
+    l.decor.push(Decor::new(S_DJ_BANNER, 7250.0, -1050.0).size(620.0, 117.0).layer(layer::BACKDROP + 5));
+    for &x in &[6960.0f32, 7540.0] {
+        l.decor.push(Decor::new(S_POST_WOOD, x, RISER).size(18.0, 720.0).standing().tint(0.15, 0.15, 0.18).layer(layer::BACKDROP + 4));
+    }
+    l.lights.push(Light { pos: v2(7250.0, -1050.0), size: 900.0, tint: (0.25, 0.45, 1.0) });
+
+    l.dance_floor = (7900.0, 9100.0, BOX2);
+
+    // A cooler to duck behind, and the candy cauldron on its table.
+    l.decor.push(Decor::new(S_COOLER, 8250.0, BOX2).scale(1.15).standing().layer(layer::PROP + 1));
+    l.blockers.push(rect(8140.0, BOX2 - 170.0, 220.0, 170.0));
+    cover(&mut l, 8130.0, BOX2 - 150.0, 240.0, 150.0, true);
+    const CAULDRON: f32 = -390.0;
+    plat(&mut l, 9250.0, CAULDRON, 220.0, Surface::Hidden);
+    l.decor.push(Decor::new(S_TABLE_TOP, 9360.0, CAULDRON + 14.0).size(240.0, 30.0).layer(layer::PROP + 1));
+    l.decor.push(Decor::new(S_TABLE_LEG, 9360.0, BOX2).size(36.0, BOX2 - CAULDRON).standing().shade(0.5).layer(layer::PROP));
+    l.decor.push(Decor::new(S_CAULDRON, 9300.0, CAULDRON).scale(0.8).standing().layer(layer::PROP + 2));
+
+    // The way out: a planter hedge on the far corner of the roof.
+    l.decor.push(Decor::new(S_PLANTER, 9800.0, BOX2 + 6.0).size(900.0, 120.0).standing().layer(layer::BEHIND + 1));
+    hedge_goal(&mut l, 9800.0, BOX2 - 90.0);
+    l.goal = v2(9800.0, BOX2);
+
+    // --- lights, sky, the neighbourhood below -----------------------------
+    string_lights(&mut l, 1900.0, 5400.0, -760.0, 140.0, 0);
+    string_lights(&mut l, 6000.0, 10100.0, -900.0, 160.0, 3);
+    l.decor.push(Decor::new(S_MOON, 3000.0, -1700.0).scale(2.4).par(0.06).layer(layer::SKY + 1));
+    for i in 0..44 {
+        l.decor.push(
+            Decor::new(S_GLOW, -200.0 + hash_f(i, 0x5a1) * 10800.0, -2400.0 + hash_f(i, 0x3c2) * 1300.0)
+                .scale(0.1 + hash_f(i, 0x7e) * 0.13)
+                .par(0.05)
+                .alpha(0.45 + hash_f(i, 0x4f) * 0.5)
+                .layer(layer::SKY + 2),
+        );
+    }
+    // Other people's roofs, further off and lower down.
+    for i in 0..7 {
+        let x = 500.0 + i as f32 * 1700.0;
+        house_h(&mut l, x, x + 1200.0 + hash_f(i, 0x91) * 400.0, 900.0, 0.35, i % 2 == 0, 760.0);
+    }
+    tree(&mut l, 5700.0, 700.0, 1.6, 0.45, 0.4, true);
+    tree(&mut l, 10300.0, 650.0, 1.4, 0.45, 0.42, true);
+
+    // --- guests -------------------------------------------------------------
+    // The crypto bro works the bar, telling everyone about it.
+    l.npcs.push(Npc::new(NpcKind::Guest, 3700.0, BOX1).patrol(3000.0, 4300.0).speed(150.0).costume(COSTUME_CRYPTO));
+    // The sexy doctor holds court by the high-top -- the pizza is right there.
+    l.npcs.push(Npc::new(NpcKind::Guest, 5050.0, BOX1).speed(0.0).facing(-1.0).costume(COSTUME_DOCTOR));
+    // A toga bro at the top of the light well, facing the way you come in.
+    l.npcs.push(Npc::new(NpcKind::Guest, 6350.0, BOX2).speed(0.0).facing(-1.0).costume(COSTUME_TOGA));
+    // The dance floor: a pilot doing laps and a second crypto bro, stationary.
+    l.npcs.push(Npc::new(NpcKind::Guest, 8500.0, BOX2).patrol(7950.0, 9050.0).speed(165.0).costume(COSTUME_PILOT));
+    l.npcs.push(Npc::new(NpcKind::Guest, 8800.0, BOX2).speed(0.0).facing(-1.0).costume(COSTUME_CRYPTO));
+
+    // --- food -----------------------------------------------------------------
+    l.pickups.push(Pickup::new(Food::Cheese, 900.0, -80.0));
+    l.pickups.push(Pickup::new(Food::Seed, 2680.0, -440.0));
+    l.pickups.push(Pickup::new(Food::Chips, 3560.0, BAR - 70.0).noisy());
+    l.pickups.push(Pickup::new(Food::Pizza, 4810.0, TOP - 70.0).noisy());
+    l.pickups.push(Pickup::new(Food::Juice, 6765.0, -630.0));
+    l.pickups.push(Pickup::new(Food::HotDog, 7250.0, -580.0).noisy());
+    l.pickups.push(Pickup::new(Food::Marshmallow, 7735.0, -640.0));
+    l.pickups.push(Pickup::new(Food::Candy, 9330.0, CAULDRON - 110.0).noisy());
+    for i in 0..5 {
+        l.pickups.push(Pickup::new(Food::Crumb, 1380.0 + i as f32 * 110.0, -170.0));
+    }
+    for i in 0..6 {
+        l.pickups.push(Pickup::new(Food::Crumb, 2420.0 + i as f32 * 100.0, -430.0));
+    }
+    for i in 0..6 {
+        l.pickups.push(Pickup::new(Food::Crumb, 4000.0 + i as f32 * 120.0, -70.0));
+    }
+    for i in 0..8 {
+        l.pickups.push(Pickup::new(Food::Crumb, 7950.0 + i as f32 * 140.0, BOX2 - 70.0));
+    }
+
+    l.checkpoints.push(v2(240.0, 0.0));
+    l.checkpoints.push(v2(2000.0, BOX1));
+    l.checkpoints.push(v2(4100.0, BOX1));
+    l.checkpoints.push(v2(6100.0, BOX2));
+    l.checkpoints.push(v2(7950.0, BOX2));
+    l
+}
 
 // ---------------------------------------------------------------------------
-// 6 -- Trash Night
+// 7 -- Trash Night
 // Will and Popcorn are asleep on the deck. The yard belongs to a raccoon
 // family now, and they are bigger than you, faster than you, and they want
 // what you are carrying. Thermal shows their body heat through the bins.
 // ---------------------------------------------------------------------------
 
 fn level_trash_night() -> Level {
-    let mut l = Level::new(5, 5, Mood::Night);
+    let mut l = Level::new(6, 6, Mood::Night);
     l.bounds = rect(-400.0, -2800.0, 10600.0, 5600.0);
     l.spawn = v2(240.0, 0.0);
     l.loot_required = 3;
@@ -1093,6 +1365,7 @@ pub fn build(index: usize) -> Level {
         2 => level_playhouse(),
         3 => level_hutch(),
         4 => level_night_run(),
+        5 => level_party(),
         _ => level_trash_night(),
     }
 }

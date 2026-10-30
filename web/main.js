@@ -10,6 +10,7 @@ var LEVEL_NAMES = [
   "The Playhouse",
   "Under the Hutch",
   "Night Run",
+  "Chaos at the Party",
   "Trash Night"
 ];
 
@@ -19,6 +20,7 @@ var LEVEL_HINTS = [
   "Ride the swings and the rope net. The slide works both ways &mdash; hold <kbd>&uarr;</kbd> to scrabble back up it. Popcorn hears everything, so hold <kbd>Shift</kbd> and sneak.",
   "Pitch dark, and every trap is baited. Crouch beside one and press <kbd>E</kbd> to lift the bait safely. Stay out of the beam.",
   "Will is up, Popcorn is loose, and the hedge is a long way off. Run.",
+  "The box house next door is throwing a rooftop Halloween party and DJ Benny Blu3 is on the decks. When the beat drops, everybody dances &mdash; nobody's watching and nobody can hear you. <b>Move on the drop.</b> And don't fall off the roof.",
   "Will and Popcorn are asleep. The raccoons are not. They burst out of the bins when you get close, and they would rather rob you than eat you &mdash; but they will settle for eating you. Thermal shows their body heat <em>through</em> cover: use it."
 ];
 
@@ -28,12 +30,13 @@ var LEVEL_BLURBS = [
   "The kids left their snacks on the playhouse deck.",
   "Under the wood hutch, where Will keeps the good traps.",
   "Last run. Get to the neighbour's hedge.",
+  "Rooftop party next door. DJ Benny Blu3. Unattended snacks.",
   "Late. The bins have eyes."
 ];
 
 var FOOD_NAMES = [
   "Crumb", "Cheese", "Bacon", "Hot Dog", "Marshmallow",
-  "Pumpkin Seed", "Cookie", "Juice Box", "Chips"
+  "Pumpkin Seed", "Cookie", "Juice Box", "Chips", "Pizza Slice", "Fun-Size Candy"
 ];
 
 // Stamped by build.sh with a hash of the shipped wasm and bundle.
@@ -46,7 +49,7 @@ var EV = {
   JUMP: 1 << 0, LAND: 1 << 1, PICKUP: 1 << 2, LOOT: 1 << 3, SNAP: 1 << 4,
   ZAP: 1 << 5, HURT: 1 << 6, ALERT: 1 << 7, BARK: 1 << 8, CAUGHT: 1 << 9,
   SAFE: 1 << 10, DISARM: 1 << 11, STUCK: 1 << 12, STEP: 1 << 13, CHECKPOINT: 1 << 14,
-  STOLEN: 1 << 15
+  STOLEN: 1 << 15, DROP: 1 << 16
 };
 
 // ---------------------------------------------------------------------------
@@ -120,6 +123,12 @@ var Audio_ = (function () {
   function schedule() {
     if (!ctx) return;
     var ahead = 0.4;
+    if (mood === 4) {
+      scheduleParty();
+      nextNote = ctx.currentTime + 0.1;
+      timer = setTimeout(schedule, 60);
+      return;
+    }
     while (nextNote < ctx.currentTime + ahead) {
       var sc = SCALES[mood], root = ROOTS[mood];
       var n = sc[step % sc.length];
@@ -147,6 +156,128 @@ var Audio_ = (function () {
       step++;
     }
     timer = setTimeout(schedule, 120);
+  }
+
+  // ---- Chaos at the Party: the finest trance 1999 had to offer ----------
+  // Driven by the game's own DJ-set clock (state slot 40), so the snare roll
+  // always lands on the drop the guests are dancing to. Five bars of build,
+  // three bars of drop -- the same numbers as PARTY_* in rust/src/level.rs.
+  var BPM = 138, STEP = 60 / BPM / 4, BUILD_STEPS = 5 * 16, CYCLE_STEPS = 8 * 16;
+  var party = { on: false, paused: true, pos: 0, at: 0, lastT: 0 };
+  // vi-IV-I-V, one chord a bar. What else.
+  var CHORDS = [[57, 60, 64], [53, 57, 60], [48, 52, 55], [55, 59, 62]];
+  // The anthem, in eighths, one bar per chord.
+  var LEAD = [
+    [69, 64, 69, 72, 71, 69, 64, 67],
+    [69, 65, 69, 72, 74, 72, 69, 65],
+    [67, 64, 67, 72, 76, 74, 72, 67],
+    [71, 67, 71, 74, 71, 69, 67, 64]
+  ];
+  function mtof(m) { return 440 * Math.pow(2, (m - 69) / 12); }
+
+  function synth(type, freq, t, dur, peak, cutoff, detune) {
+    var o = ctx.createOscillator(), g = ctx.createGain(), f = ctx.createBiquadFilter();
+    o.type = type; o.frequency.value = freq; if (detune) o.detune.value = detune;
+    f.type = 'lowpass'; f.frequency.value = cutoff || 4000; f.Q.value = 2;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(peak, t + 0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(f); f.connect(g); g.connect(musicGain);
+    o.start(t); o.stop(t + dur + 0.05);
+  }
+  // Five detuned saws: the supersaw, the sound of a glow stick.
+  function supersaw(freq, t, dur, peak, cutoff) {
+    [-24, -11, 0, 11, 24].forEach(function (d) { synth('sawtooth', freq, t, dur, peak / 3, cutoff, d); });
+  }
+  function mnoise(t, dur, peak, freq, type) {
+    var n = Math.floor(ctx.sampleRate * dur), buf = ctx.createBuffer(1, n, ctx.sampleRate);
+    var d = buf.getChannelData(0);
+    for (var i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+    var src = ctx.createBufferSource(); src.buffer = buf;
+    var f = ctx.createBiquadFilter(); f.type = type || 'highpass'; f.frequency.value = freq;
+    var g = ctx.createGain(); env(g, t, 0.003, dur, peak);
+    src.connect(f); f.connect(g); g.connect(musicGain);
+    src.start(t); src.stop(t + dur + 0.05);
+  }
+  function kick(t, peak) {
+    var o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(160, t);
+    o.frequency.exponentialRampToValueAtTime(42, t + 0.12);
+    env(g, t, 0.002, 0.3, peak);
+    o.connect(g); g.connect(musicGain);
+    o.start(t); o.stop(t + 0.35);
+  }
+
+  function partyStep(i, t) {
+    var drop = i >= BUILD_STEPS;
+    var bar = Math.floor(i / 16), s = i % 16;
+    var chord = CHORDS[bar % 4], root = mtof(chord[0] - 24);
+    var lastBuildBar = bar === 4;
+
+    // Four on the floor -- except the bar before the drop, which holds its breath.
+    if (s % 4 === 0 && !lastBuildBar) kick(t, drop ? 0.9 : 0.7);
+    // The rolling offbeat bass.
+    if (s % 4 === 2) synth('sawtooth', root, t, STEP * 1.7, drop ? 0.32 : 0.24, drop ? 900 : 600);
+    // Hats on the offbeat, open on the drop.
+    if (s % 4 === 2) mnoise(t, drop ? 0.12 : 0.04, drop ? 0.16 : 0.1, 7000);
+
+    if (!drop) {
+      // The arp: chord tones up and down in sixteenths, through a filter that
+      // opens across the build.
+      var arp = [0, 1, 2, 1];
+      var cut = 700 + (i / BUILD_STEPS) * 2600;
+      if (!lastBuildBar) synth('square', mtof(chord[arp[s % 4]] + 12), t, STEP * 0.9, 0.08, cut);
+      if (lastBuildBar) {
+        // The snare roll: quarters, then eighths, then sixteenths, louder
+        // every hit, with white noise rising under it.
+        var every = s < 8 ? 4 : (s < 12 ? 2 : 1);
+        if (s % every === 0) mnoise(t, 0.09, 0.12 + s * 0.022, 1800, 'bandpass');
+        if (s === 0) {
+          var n = Math.floor(ctx.sampleRate * STEP * 16), buf = ctx.createBuffer(1, n, ctx.sampleRate);
+          var d = buf.getChannelData(0);
+          for (var k = 0; k < n; k++) d[k] = Math.random() * 2 - 1;
+          var src = ctx.createBufferSource(); src.buffer = buf;
+          var f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = 3;
+          f.frequency.setValueAtTime(400, t);
+          f.frequency.exponentialRampToValueAtTime(9000, t + STEP * 16);
+          var g = ctx.createGain();
+          g.gain.setValueAtTime(0.0001, t);
+          g.gain.exponentialRampToValueAtTime(0.22, t + STEP * 15.5);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + STEP * 16);
+          src.connect(f); f.connect(g); g.connect(musicGain);
+          src.start(t); src.stop(t + STEP * 16 + 0.05);
+        }
+      }
+      return;
+    }
+
+    // ---- the drop ----
+    if (i === BUILD_STEPS) mnoise(t, 1.6, 0.3, 3000);          // crash
+    if (s === 4 || s === 12) mnoise(t, 0.14, 0.24, 1200, 'bandpass');  // clap
+    // Gated pad stabs on every offbeat sixteenth pair.
+    if (s % 2 === 1) chord.forEach(function (m) { synth('sawtooth', mtof(m), t, STEP * 0.8, 0.05, 2400, 9); });
+    // The anthem.
+    if (s % 2 === 0) supersaw(mtof(LEAD[bar % 4][s / 2] + 12), t, STEP * 1.9, 0.17, 5200);
+  }
+
+  function scheduleParty() {
+    if (!party.on || party.paused || muted) return;
+    var now = ctx.currentTime, ahead = 0.25;
+    // Where the set is right now, extrapolated from the last frame's report.
+    var base = party.pos + (now - party.at);
+    var first = Math.ceil(base / STEP), last = Math.floor((base + ahead) / STEP);
+    for (var k = first; k <= last; k++) {
+      var t = now + (k * STEP - base);
+      if (t <= party.lastT + STEP * 0.5) continue;      // already scheduled
+      party.lastT = t;
+      partyStep(((k % CYCLE_STEPS) + CYCLE_STEPS) % CYCLE_STEPS, t);
+    }
+  }
+
+  function setParty(on, pos, paused) {
+    party.on = on; party.pos = pos; party.paused = paused;
+    if (ctx) party.at = ctx.currentTime;
   }
 
   function setMood(m) { mood = m | 0; }
@@ -193,6 +324,14 @@ var Audio_ = (function () {
         break;
       case 'disarm': tone(1046, t, 0.07, 'sine', 0.22); tone(1568, t + 0.06, 0.14, 'sine', 0.18); break;
       case 'stuck':  noise(t, 0.3, 0.2, 120, 500); break;
+      case 'airhorn':
+        // BWAP BWAP BWAAAAAP. Non-negotiable.
+        [[0, 0.11], [0.15, 0.11], [0.3, 0.55]].forEach(function (b) {
+          [466, 554, 698].forEach(function (f) {
+            tone(f, t + b[0], b[1], 'sawtooth', 0.12, f * 0.97);
+          });
+        });
+        break;
       case 'check':  tone(659, t, 0.1, 'sine', 0.2); tone(988, t + 0.08, 0.2, 'sine', 0.18); break;
       case 'stolen':
         // A chittering snatch, then the sound of it leaving.
@@ -210,6 +349,7 @@ var Audio_ = (function () {
   }
 
   return { resume: resume, play: play, toggle: toggle, setMood: setMood, setTension: setTension,
+           setParty: setParty,
            isMuted: function () { return muted; } };
 })();
 
@@ -272,7 +412,7 @@ function base64ToBytes(b64) {
 var wasm = null, mem = null, memF32 = null;
 var renderer = null, canvas = null;
 var ui = {};
-var state = { phase: -1, level: 0, unlocked: 0, levelCount: 5, paused: false, menu: 'title' };
+var state = { phase: -1, level: 0, unlocked: 0, levelCount: 5, paused: false, menu: 'title', dev: false };
 var lastTime = 0, accum = 0;
 
 function refreshViews() {
@@ -361,7 +501,7 @@ function showMenu(which, data) {
   if (which === 'title') {
     html =
       '<div class="title-art">' +
-        '<div class="kicker">A paper-thin heist in five acts</div>' +
+        '<div class="kicker">A paper-thin heist in seven acts</div>' +
         '<h1>Will\'s<br><span>Backyard</span></h1>' +
         '<p class="sub">You are a rat. Will has traps, a grill, and a dog in a tutu.<br>' +
         'Steal the good food and make it to the neighbour\'s hedge.</p>' +
@@ -375,8 +515,10 @@ function showMenu(which, data) {
       '</div>';
   } else if (which === 'levels') {
     html = '<h2>Pick your night</h2><div class="levels">';
-    for (var i = 0; i < state.levelCount; i++) html += levelCard(i, i > state.unlocked);
-    html += '</div><div class="row"><button data-act="title">Back</button></div>';
+    for (var i = 0; i < state.levelCount; i++) html += levelCard(i, i > state.unlocked && !state.dev);
+    html += '</div>' +
+      (state.dev ? '<p class="note">Dev mode: every night unlocked.</p>' : '') +
+      '<div class="row"><button data-act="title">Back</button></div>';
   } else if (which === 'controls') {
     html =
       '<h2>Controls</h2>' +
@@ -428,7 +570,7 @@ function showMenu(which, data) {
   } else if (which === 'finished') {
     html = '<div class="stamp">Home</div>' +
       '<h2>You made it into the hedge</h2>' +
-      '<p class="sub">Five yards, one dog in a tutu, and a hot dog you will never explain.</p>' +
+      '<p class="sub">Six yards, one rooftop party, a dog in a tutu, and a hot dog you will never explain.</p>' +
       '<div class="stats big">' +
         '<div><b>' + data.total + '</b><span>Total score</span></div>' +
         '<div><b>' + data.deaths + '</b><span>Times caught</span></div>' +
@@ -519,13 +661,15 @@ function startLevel(i) {
   state.level = i;
   state.paused = false;
   wasm.wb_start_level(i);
-  Audio_.setMood([0, 0, 0, 3, 2][i] !== undefined ? moodFor(i) : 0);
+  Audio_.setMood(moodFor(i));
+  dropToasts = 0;
   hideMenu();
 }
 
 function moodFor(i) {
-  // Matches Level::new in Rust: 0 afternoon, 1 dusk, 2 night, 3 underside.
-  return [1, 0, 0, 3, 2, 2][i];
+  // Matches Level::new in Rust: 0 afternoon, 1 dusk, 2 night, 3 underside,
+  // and 4 for the party, which brings its own music.
+  return [1, 0, 0, 3, 2, 4, 2][i] || 0;
 }
 
 // ---------------------------------------------------------------------------
@@ -546,6 +690,12 @@ function bindEvents() {
     if (e.code === 'KeyM') { ui.muteBtn.textContent = Audio_.toggle() ? '♪ off' : '♪ on'; return; }
     if (e.code === 'KeyI') { toggleIR(); return; }
     if (e.code === 'KeyB') { reportBug(); return; }
+    // Dev mode: Shift+D on the level select unlocks every level.
+    if (e.code === 'KeyD' && e.shiftKey && state.menu === 'levels' && !state.dev) {
+      state.dev = true;
+      showMenu('levels');
+      return;
+    }
     if (state.menu && (e.code === 'Enter' || e.code === 'Space')) {
       var btn = ui.menuBody.querySelector('button.primary') || ui.menuBody.querySelector('button');
       if (btn) { btn.click(); e.preventDefault(); return; }
@@ -619,6 +769,8 @@ function toggleIR() {
   Audio_.play(irOn ? 'check' : 'pickup');
 }
 
+var dropToasts = 0, partyToastUntil = 0;
+
 var hudCache = { health: -1, score: -1, loot: -1, lootMax: -1, level: -1, crumbs: -1, pw: '' };
 
 function updateHud(s) {
@@ -686,6 +838,10 @@ function updateHud(s) {
     ui.toast.textContent = 'A raccoon took it!';
     ui.toast.style.background = '#8c2f24';
     ui.toast.style.opacity = Math.min(1, toastT);
+  } else if (performance.now() < partyToastUntil) {
+    ui.toast.innerHTML = 'The beat dropped &mdash; nobody\'s watching. <b>Move!</b>';
+    ui.toast.style.background = '#2f3fbf';
+    ui.toast.style.opacity = 1;
   } else if (toastT > 0 && toastFood >= 0) {
     ui.toast.textContent = 'Got the ' + FOOD_NAMES[toastFood];
     ui.toast.style.background = '';
@@ -728,6 +884,11 @@ function handleEvents(bits) {
   if (bits & EV.STUCK) Audio_.play('stuck');
   if (bits & EV.CHECKPOINT) Audio_.play('check');
   if (bits & EV.STOLEN) Audio_.play('stolen');
+  if (bits & EV.DROP) {
+    Audio_.play('airhorn');
+    // Say it out loud the first couple of times; after that the music does.
+    if (dropToasts < 2) { dropToasts++; partyToastUntil = performance.now() + 2200; }
+  }
 }
 
 function frame(now) {
@@ -778,6 +939,7 @@ function frame(now) {
   }
 
   Audio_.setTension(s[4]);
+  Audio_.setParty(s[39] > 0.5, s[40], !!(state.menu || state.paused) || phase !== PHASE.PLAYING);
   if (!state.menu) updateHud(s);
 
   var dPtr = wasm.wb_draw_ptr() >> 2;

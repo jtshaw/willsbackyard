@@ -306,7 +306,13 @@ pub fn draw_pickups(dl: &mut DrawList, lvl: &Level, t: f32) {
 // ---------------------------------------------------------------------------
 
 pub fn draw_npcs(dl: &mut DrawList, lvl: &Level, t: f32) {
+    let drop = lvl.party_drop();
+    let beat = lvl.party_beat();
     for n in lvl.npcs.iter() {
+        if n.kind == NpcKind::Dj {
+            puppet::draw_dj(dl, n, beat, drop);
+            continue;
+        }
         // --- vision cone ---
         let dir = match n.kind {
             NpcKind::WillLight => v2(n.look.cos() * n.facing, n.look.sin().abs()).norm(),
@@ -361,6 +367,10 @@ pub fn draw_npcs(dl: &mut DrawList, lvl: &Level, t: f32) {
             NpcKind::Popcorn => {
                 dl.shadow(n.pos.x, n.pos.y - 6.0, 300.0, 0.4);
                 puppet::draw_popcorn(dl, n, t);
+            }
+            NpcKind::Guest => {
+                dl.shadow(n.pos.x, n.pos.y - 6.0, 400.0, 0.45);
+                puppet::draw_guest(dl, n, t, drop, beat);
             }
             NpcKind::WillLight => {
                 // Only a hand and the torch are visible through the gap.
@@ -465,6 +475,31 @@ pub fn draw_darkness(dl: &mut DrawList, lvl: &Level, p: &Player, t: f32) {
         );
     }
 
+    if lvl.party {
+        for (top, _) in party_lanterns(lvl) {
+            dl.push(
+                Sp::new(S_LIGHT_BLOB, top.x, top.y + 100.0)
+                    .width(420.0)
+                    .tint(1.0, 0.55, 0.15)
+                    .alpha(0.6)
+                    .blend(BLEND_ADD)
+                    .layer(layer::DARKNESS + 5),
+            );
+        }
+    }
+
+    // String lights, lanterns, the booth.
+    for l in lvl.lights.iter() {
+        dl.push(
+            Sp::new(S_LIGHT_BLOB, l.pos.x, l.pos.y)
+                .width(l.size)
+                .tint(l.tint.0, l.tint.1, l.tint.2)
+                .alpha(0.5)
+                .blend(BLEND_ADD)
+                .layer(layer::DARKNESS + 5),
+        );
+    }
+
     // Lit pickups and hot traps glow through the dark.
     for pk in lvl.pickups.iter() {
         if pk.taken {
@@ -533,4 +568,120 @@ pub fn draw_overlay(dl: &mut DrawList, lvl: &Level) {
             .layer(layer::OVERLAY),
     );
     dl.screen_space = false;
+}
+
+// ---------------------------------------------------------------------------
+// The party: lasers, the dance floor, and the booth's glow -- all keyed to
+// the DJ set, so the drop is something you can see coming and see land.
+// ---------------------------------------------------------------------------
+
+pub fn draw_party(dl: &mut DrawList, lvl: &Level) {
+    if !lvl.party {
+        return;
+    }
+    let beat = lvl.party_beat();
+    let drop = lvl.party_drop();
+    let booth = lvl.booth;
+    let (floor_x0, floor_x1, floor_y) = lvl.dance_floor;
+    let cyc = lvl.party_t % PARTY_CYCLE;
+    // 0..1 over the build, so the lights can wind up with the music.
+    let build = clamp(cyc / PARTY_DROP_AT, 0.0, 1.0);
+    let pulse = 1.0 - (beat % 1.0);
+
+    // Paper lanterns over the light well: the rat stands on top of them.
+    for (top, pivot) in party_lanterns(lvl) {
+        let d = top.sub(pivot);
+        dl.push(
+            Sp::new(S_WHITE, (top.x + pivot.x) * 0.5, (top.y + pivot.y) * 0.5)
+                .size(d.len(), 4.0)
+                .rot(d.y.atan2(d.x))
+                .tint(0.1, 0.1, 0.12)
+                .layer(layer::PROP),
+        );
+        dl.push(
+            Sp::new(S_LANTERN, top.x, top.y + 92.0)
+                .size(144.0, 190.0)
+                .rot(-d.x.atan2(d.y) * 0.6)
+                .layer(layer::PROP + 1),
+        );
+    }
+
+    // Dance floor tiles, flashing on the beat.
+    let n = ((floor_x1 - floor_x0) / 120.0) as i32;
+    let colours = [(1.0, 0.2, 0.75), (0.2, 0.6, 1.0), (0.3, 1.0, 0.55), (1.0, 0.8, 0.2)];
+    for i in 0..n {
+        let on = ((beat as i32 + i) % 3) == 0;
+        let c = colours[((i + beat as i32) % 4) as usize];
+        let a = if drop { if on { 0.55 } else { 0.18 } } else if on { 0.14 + 0.2 * build * pulse } else { 0.05 };
+        dl.push(
+            Sp::new(S_WHITE, floor_x0 + (i as f32 + 0.5) * 120.0, floor_y + 14.0)
+                .size(112.0, 26.0)
+                .tint(c.0, c.1, c.2)
+                .alpha(a)
+                .blend(BLEND_ADD)
+                .layer(layer::GROUND + 2),
+        );
+    }
+
+    // Lasers from the booth: two lazy beams during the build, a fan of
+    // sweeping ones on the drop.
+    let beams = if drop { 6 } else { 2 };
+    for i in 0..beams {
+        let f = i as f32 / beams.max(2) as f32;
+        let sweep = (lvl.party_t * if drop { 1.9 } else { 0.5 } + f * TAU).sin();
+        let ang = -PI * 0.5 + sweep * 0.9;
+        let len = 1500.0;
+        let dir = v2(ang.cos(), ang.sin());
+        let c = booth.add(dir.scale(len * 0.5));
+        let col = colours[(i as usize + 1) % 4];
+        dl.push(
+            Sp::new(S_WHITE, c.x, c.y)
+                .size(len, 7.0)
+                .rot(ang)
+                .tint(col.0, col.1, col.2)
+                .alpha(if drop { 0.55 } else { 0.22 + 0.2 * build })
+                .blend(BLEND_ADD)
+                .layer(layer::LIGHT),
+        );
+    }
+
+    // The booth throbs with the kick.
+    dl.push(
+        Sp::new(S_LIGHT_BLOB, booth.x, booth.y + 60.0)
+            .width(if drop { 900.0 } else { 600.0 } * (0.85 + 0.15 * pulse))
+            .tint(0.3, 0.45, 1.0)
+            .alpha(if drop { 0.5 } else { 0.25 })
+            .blend(BLEND_ADD)
+            .layer(layer::LIGHT),
+    );
+
+    // A white strobe the instant it drops.
+    if drop && cyc - PARTY_DROP_AT < 0.35 {
+        dl.screen_space = true;
+        dl.push(
+            Sp::new(S_WHITE, dl.view_w * 0.5, dl.view_h * 0.5)
+                .size(dl.view_w, dl.view_h)
+                .alpha(0.25 * (1.0 - (cyc - PARTY_DROP_AT) / 0.35))
+                .blend(BLEND_ADD)
+                .layer(layer::LIGHT + 1),
+        );
+        dl.screen_space = false;
+    }
+}
+
+/// Each lantern's top surface and the point it hangs from.
+fn party_lanterns(lvl: &Level) -> Vec<(V2, V2)> {
+    let mut out = Vec::new();
+    for sol in lvl.solids.iter() {
+        if sol.mover < 0 || sol.surface != Surface::Hidden {
+            continue;
+        }
+        let m = &lvl.movers[sol.mover as usize];
+        if m.kind != MoverKind::Swing {
+            continue;
+        }
+        let r = lvl.solid_rect(sol);
+        out.push((v2(r.x + r.w * 0.5, r.y), m.origin));
+    }
+    out
 }
