@@ -30,6 +30,7 @@ available for private builds; see [Password protection](#password-protection).
 | `I` | Infrared camera (dark levels only) |
 | `M` | Mute |
 | `Esc` | Pause |
+| `B` | Report a bug |
 
 Gamepads work. On a phone, play in landscape — there's an on-screen d-pad.
 
@@ -132,6 +133,19 @@ gitignored `.password` file; with neither, it produces an unlocked build and
 says so. `tools/test_lock.js` then checks the result actually protects
 something — that no game code, level name or the password itself survives in
 the page, that the real password opens it, and that near-miss passwords don't.
+
+## Bug reports
+
+Press `B` in the game, or use **Report a bug** on the title or pause menu. It
+pauses the game and opens a GitHub issue pre-filled with the build, level, the
+rat's exact position and the browser. `node tools/render.js repro <level> <x> <y>`
+renders that spot offline.
+
+To have Claude work on a report, add the `claude-fix` label to the issue or
+comment `@claude` on it (only collaborators can trigger it). The
+[workflow](.github/workflows/claude-fix.yml) reproduces the bug, fixes it, and
+opens a PR for review. Locally, `/fix-bug <issue#>` in Claude Code follows the
+same [steps](.claude/skills/fix-bug/SKILL.md).
 
 ## Building
 

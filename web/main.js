@@ -36,6 +36,10 @@ var FOOD_NAMES = [
   "Pumpkin Seed", "Cookie", "Juice Box", "Chips"
 ];
 
+// Stamped by build.sh with a hash of the shipped wasm and bundle.
+var BUILD_ID = '__BUILD__';
+var ISSUE_URL = 'https://github.com/jtshaw/willsbackyard/issues/new';
+
 var PHASE = { TITLE: 0, INTRO: 1, PLAYING: 2, CAUGHT: 3, COMPLETE: 4, GAMEOVER: 5, FINISHED: 6 };
 
 var EV = {
@@ -366,6 +370,7 @@ function showMenu(which, data) {
         '<button class="primary" data-act="play">Start the heist</button>' +
         '<button data-act="levels">Choose a level</button>' +
         '<button data-act="controls">Controls</button>' +
+        '<button data-act="bug">Report a bug</button>' +
       '</div>';
   } else if (which === 'levels') {
     html = '<h2>Pick your night</h2><div class="levels">';
@@ -381,6 +386,7 @@ function showMenu(which, data) {
         '<div><kbd>E</kbd><span>Lift bait off a trap (crouch beside it first)</span></div>' +
         '<div><kbd>&uarr;</kbd><kbd>&darr;</kbd><span>Climb ladders and rope nets</span></div>' +
         '<div><kbd>Esc</kbd><span>Pause</span></div>' +
+        '<div><kbd>B</kbd><span>Report a bug</span></div>' +
       '</div>' +
       '<p class="note">A gamepad works too. Noise is what gets you caught — running is loud, sneaking is not.</p>' +
       '<div class="row"><button data-act="back">Back</button></div>';
@@ -389,7 +395,8 @@ function showMenu(which, data) {
       '<button class="primary" data-act="resume">Resume</button>' +
       '<button data-act="restart">Restart level</button>' +
       '<button data-act="levels">Level select</button>' +
-      '<button data-act="title">Quit to title</button></div>';
+      '<button data-act="title">Quit to title</button>' +
+      '<button data-act="bug">Report a bug</button></div>';
   } else if (which === 'complete') {
     var next = data.level + 1;
     html = '<div class="stamp">Safe!</div>' +
@@ -453,7 +460,37 @@ function menuAction(act, node) {
   else if (act === 'resume') { state.paused = false; hideMenu(); }
   else if (act === 'restart') { startLevel(state.level); }
   else if (act === 'next') { startLevel(state.level + 1); }
+  else if (act === 'bug') { reportBug(); }
   else if (act === 'finish') { showMenu('finished', { total: lastStats.total, deaths: lastStats.deaths }); }
+}
+
+// Opens a pre-filled GitHub issue. The game details block is what lets
+// tools/render.js put the rat back exactly where the report came from.
+function reportBug() {
+  if (!state.menu) { state.paused = true; showMenu('pause'); }
+  refreshViews();
+  var p = wasm.wb_state_ptr() >> 2;
+  var s = memF32.subarray(p, p + 48);
+  var level = s[6] | 0;
+  var phaseName = Object.keys(PHASE).filter(function (k) { return PHASE[k] === (s[5] | 0); })[0];
+  var details = [
+    'build:    ' + BUILD_ID,
+    'level:    ' + level + ' (' + LEVEL_NAMES[level] + ')',
+    'phase:    ' + phaseName + ', ' + s[7].toFixed(1) + 's in',
+    'position: x=' + Math.round(s[27]) + ' y=' + Math.round(s[28]),
+    'velocity: x=' + Math.round(s[29]) + ' y=' + Math.round(s[30]) +
+      (s[31] > 0.5 ? ', on ground' : ', airborne') + (s[33] > 0.5 ? ', crouched' : ''),
+    'player:   state=' + (s[32] | 0) + ' health=' + (s[0] | 0) +
+      ' loot=' + (s[2] | 0) + '/' + (s[3] | 0) + ' tension=' + s[4].toFixed(2),
+    'vision:   ' + (irOn ? 'infrared' : 'normal') + (Audio_.isMuted() ? ', muted' : ''),
+    'screen:   ' + window.innerWidth + 'x' + window.innerHeight + ' @' + (window.devicePixelRatio || 1) + 'x' +
+      (isTouch ? ', touch' : ''),
+    'browser:  ' + navigator.userAgent
+  ].join('\n');
+  var url = ISSUE_URL + '?template=bug.yml' +
+    '&title=' + encodeURIComponent('[' + LEVEL_NAMES[level] + '] ') +
+    '&context=' + encodeURIComponent(details);
+  window.open(url, '_blank', 'noopener');
 }
 
 function startLevel(i) {
@@ -486,6 +523,7 @@ function bindEvents() {
     }
     if (e.code === 'KeyM') { ui.muteBtn.textContent = Audio_.toggle() ? '♪ off' : '♪ on'; return; }
     if (e.code === 'KeyI') { toggleIR(); return; }
+    if (e.code === 'KeyB') { reportBug(); return; }
     if (state.menu && (e.code === 'Enter' || e.code === 'Space')) {
       var btn = ui.menuBody.querySelector('button.primary') || ui.menuBody.querySelector('button');
       if (btn) { btn.click(); e.preventDefault(); return; }

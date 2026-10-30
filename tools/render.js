@@ -4,6 +4,9 @@
 //
 //   node tools/render.js atlas          -> build/atlas.png
 //   node tools/render.js shots          -> build/shot_*.png
+//   node tools/render.js repro <level> <x> <y> [frames] [input] [ir]
+//                                       -> build/repro.png, from a bug report's
+//                                          "Game details" block
 
 const fs = require('fs');
 const path = require('path');
@@ -164,6 +167,16 @@ async function main() {
     ['24_trash_gauntlet', 5, 9350,    0, 80, 2, true],
   ];
 
+  if (mode === 'repro') {
+    const [lvl, tx, ty, warm = 40, input = 0, ir = 0] = process.argv.slice(3).map(Number);
+    if ([lvl, tx, ty].some(Number.isNaN)) {
+      console.error('usage: node tools/render.js repro <level> <x> <y> [frames] [input] [ir]');
+      process.exit(2);
+    }
+    shots.length = 0;
+    shots.push(['repro', lvl, tx, ty, Math.max(1, warm), input, !!ir]);
+  }
+
   for (const [label, lvl, tx, ty, warm, input, ir] of shots) {
     w.wb_start_level(lvl);
     if (w.wb_set_vision) w.wb_set_vision(ir ? 1 : 0);
@@ -178,8 +191,9 @@ async function main() {
     const count = w.wb_draw_count();
     const cmds = M.subarray(w.wb_draw_ptr() >> 2, (w.wb_draw_ptr() >> 2) + count * CMD_STRIDE);
     drawList(ctx, cmds, count, atlas, VW, VH, [s[9], s[10], s[11]]);
-    fs.writeFileSync(path.join(outDir, `shot_${label}.png`), cv.toBuffer('image/png'));
-    console.log(`  shot_${label}.png  (${count} quads)`);
+    const file = label === 'repro' ? 'repro.png' : `shot_${label}.png`;
+    fs.writeFileSync(path.join(outDir, file), cv.toBuffer('image/png'));
+    console.log(`  ${file}  (${count} quads)  rat at x=${Math.round(s[27])} y=${Math.round(s[28])}`);
   }
   console.log('done');
 }

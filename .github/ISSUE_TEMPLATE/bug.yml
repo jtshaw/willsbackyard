@@ -1,0 +1,36 @@
+name: Bug report
+description: Something in the game looks or behaves wrong.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! Pressing **B** in the game (or **Report a bug** on
+        the pause menu) opens this form with the level, position and browser
+        already filled in.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you see? A screenshot or short clip helps a lot.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect instead?
+  - type: textarea
+    id: steps
+    attributes:
+      label: How do you get it to happen?
+      description: Roughly what you were doing just before — jumping off the slide, sneaking past the dog, and so on.
+      placeholder: |
+        1. Start The Playhouse
+        2. Run to the slide and hold up
+        3. ...
+  - type: textarea
+    id: context
+    attributes:
+      label: Game details
+      description: Filled in automatically when you use the in-game shortcut. Leave it as is.
+      render: text

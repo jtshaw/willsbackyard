@@ -31,6 +31,7 @@ mkdir -p dist build docs
 # Concatenate in load order: art modules, then the atlas packer, renderer, runtime.
 cat web/art/*.js web/atlas.js web/gl.js web/main.js > build/bundle.js
 
+
 # Resolve the password without ever putting it on a command line.
 WB_PASSWORD="${WB_PASSWORD:-}"
 if [ -z "$WB_PASSWORD" ] && [ -f .password ]; then
@@ -44,7 +45,13 @@ const { seal } = require('./tools/lock.js');
 
 const wasm = fs.readFileSync('rust/target/wasm32-unknown-unknown/release/willsbackyard.wasm');
 const b64 = wasm.toString('base64');
-const bundle = fs.readFileSync('build/bundle.js', 'utf8');
+// Bug reports quote a hash of exactly what was shipped. The page is committed
+// alongside the source it came from, so `git log -S <id> -- docs/index.html`
+// finds the commit a player was running.
+const rawBundle = fs.readFileSync('build/bundle.js', 'utf8');
+const buildId = require('crypto').createHash('sha256')
+  .update(wasm).update(rawBundle).digest('hex').slice(0, 10);
+const bundle = rawBundle.replace("'__BUILD__'", () => JSON.stringify(buildId));
 const shell = fs.readFileSync('web/shell.html', 'utf8');
 
 const password = process.env.WB_PASSWORD || '';
@@ -88,7 +95,7 @@ fs.writeFileSync('docs/.nojekyll', '');
 const kb = (n) => (n / 1024).toFixed(1).padStart(7);
 console.log(`    wasm   ${kb(wasm.length)} KB`);
 console.log(`    bundle ${kb(Buffer.byteLength(bundle))} KB`);
-console.log(`    page   ${kb(Buffer.byteLength(out))} KB  [${mode}]`);
+console.log(`    page   ${kb(Buffer.byteLength(out))} KB  [${mode}]  build ${buildId}`);
 console.log('    -> dist/willsbackyard.html and docs/index.html');
 if (mode === 'open') {
   console.log('    NOTE: no password set, so this build is playable by anyone.');
