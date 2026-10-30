@@ -633,14 +633,41 @@ impl Rig {
     }
 }
 
-/// An arm from the shoulder: upper arm, forearm, and the prop in the hand.
-/// Returns the hand position in rig-local units.
+/// Where a limb of length `len` hung from (x, y) at `angle` ends, in
+/// rig-local units. Matches `Rig::reach`: the sprite's (0, 1) axis is rotated
+/// by `angle`, so 0 hangs straight down, negative swings forward and +-PI
+/// points straight up.
+fn limb_end(x: f32, y: f32, angle: f32, len: f32) -> V2 {
+    v2(x - angle.sin() * len, y + angle.cos() * len)
+}
+
+/// Shoulder -> elbow -> hand. Returns the hand position in rig-local units.
+fn arm_chain(rig: &Rig, dl: &mut DrawList, arm: u16, forearm: u16, x: f32, shoulder_y: f32, arm_a: f32, fore_a: f32, lay: i32) -> V2 {
+    rig.reach(dl, arm, x, shoulder_y, 1.0, arm_a, lay);
+    let e = limb_end(x, shoulder_y, arm_a, W_UPPER_ARM);
+    rig.reach(dl, forearm, e.x, e.y, 1.0, fore_a, lay);
+    limb_end(e.x, e.y, fore_a, W_FOREARM - 6.0)
+}
+
+/// A fist pump, `p` from 0 (elbow low) to 1 (punched up). The upper arm
+/// swings forward and up and the forearm stands vertical, so the fist goes
+/// up in front of the face instead of through it.
+fn pump_near(p: f32) -> (f32, f32) {
+    (-(1.75 + 0.55 * p), -PI + 0.22 - 0.3 * p)
+}
+
+/// The other arm, raised behind the head on the off-beat.
+fn pump_far(p: f32) -> (f32, f32) {
+    (1.55 + 0.45 * p, PI + 0.15 - 0.25 * p)
+}
+
+/// 0..1, peaking on every beat.
+fn beat_pump(beat: f32, off: f32) -> f32 {
+    (beat * PI + off).sin().abs()
+}
+
 fn guest_arm(rig: &Rig, dl: &mut DrawList, o: &Outfit, x: f32, shoulder_y: f32, arm_a: f32, fore_a: f32, lay: i32) -> V2 {
-    rig.reach(dl, o.arm, x, shoulder_y, 1.0, arm_a, lay);
-    let ex = x + arm_a.sin() * W_UPPER_ARM;
-    let ey = shoulder_y + arm_a.cos() * W_UPPER_ARM;
-    rig.reach(dl, o.forearm, ex, ey, 1.0, fore_a, lay);
-    v2(ex + fore_a.sin() * (W_FOREARM - 6.0), ey + fore_a.cos() * (W_FOREARM - 6.0))
+    arm_chain(rig, dl, o.arm, o.forearm, x, shoulder_y, arm_a, fore_a, lay)
 }
 
 pub fn draw_guest(dl: &mut DrawList, n: &Npc, t: f32, dancing: bool, beat: f32) {
@@ -687,11 +714,11 @@ pub fn draw_guest(dl: &mut DrawList, n: &Npc, t: f32, dancing: bool, beat: f32) 
     rig.shade = 0.74;
     leg(&rig, dl, -10.0, -swing * 0.5, layer::ACTOR_BACK);
     if dance {
-        // Hands up for the drop, waving out of time with the other one.
-        let a = PI - 0.45 + (beat * PI + off + 1.3).sin() * 0.3;
-        guest_arm(&rig, dl, &o, -16.0, shoulder_y, a, a + 0.25, layer::ACTOR_BACK);
+        // Hands up for the drop, the back one on the off-beat.
+        let (a, f) = pump_far(beat_pump(beat, off + PI * 0.5));
+        guest_arm(&rig, dl, &o, -16.0, shoulder_y, a, f, layer::ACTOR_BACK);
     } else {
-        guest_arm(&rig, dl, &o, -16.0, shoulder_y, swing * 0.6, swing * 0.6 + 0.2, layer::ACTOR_BACK);
+        guest_arm(&rig, dl, &o, -16.0, shoulder_y, -swing * 0.6, -swing * 0.6 - 0.2, layer::ACTOR_BACK);
     }
     rig.shade = 1.0;
 
@@ -714,16 +741,16 @@ pub fn draw_guest(dl: &mut DrawList, n: &Npc, t: f32, dancing: bool, beat: f32) 
         // Pointing at the rat.
         (-1.35 + (phase * 1.3).sin() * 0.1, -1.5)
     } else if dance {
-        let a = PI - 0.35 + (beat * PI + off).sin() * 0.35;
-        (a, a - 0.2)
+        pump_near(beat_pump(beat, off))
     } else if chatting {
-        // Drink (or phone) up at face height.
-        (-0.35, -2.5)
+        // Drink (or phone) held up by the chin.
+        (-0.35, -2.4)
     } else {
-        (-swing * 0.6, -swing * 0.6 - 0.3)
+        (swing * 0.6, swing * 0.6 - 0.3)
     };
     let hand = guest_arm(&rig, dl, &o, 18.0, shoulder_y, arm_a, fore_a, layer::ACTOR_FRONT);
-    rig.part(dl, o.prop, hand.x + 4.0, hand.y - 6.0, o.prop_s, if dance { -0.4 } else { 0.0 }, layer::ACTOR_FRONT + 1);
+    // Drinks and phones stay upright in the hand, whatever the arm is doing.
+    rig.part(dl, o.prop, hand.x, hand.y - 8.0, o.prop_s, 0.0, layer::ACTOR_FRONT + 1);
 }
 
 /// DJ Benny Blu3, behind the decks: nodding on every beat, one hand on the
@@ -736,32 +763,22 @@ pub fn draw_dj(dl: &mut DrawList, n: &Npc, beat: f32, drop: bool) {
 
     let mut back = Rig::new(n.pos, n.facing, WILL_SCALE);
     back.shade = 0.74;
-    if drop {
-        let a = PI - 0.3 + (beat * PI * 0.5).sin() * 0.25;
-        back.reach(dl, S_DJ_ARM, -16.0, shoulder_y, 1.0, a, layer::ACTOR_BACK);
-        let ex = -16.0 + a.sin() * W_UPPER_ARM;
-        let ey = shoulder_y + a.cos() * W_UPPER_ARM;
-        back.reach(dl, S_DJ_FOREARM, ex, ey, 1.0, a + 0.2, layer::ACTOR_BACK);
+    let (a, f) = if drop {
+        pump_far(beat_pump(beat, PI * 0.5))
     } else {
-        // Holding one ear of the headphones to the head.
-        back.reach(dl, S_DJ_ARM, -16.0, shoulder_y, 1.0, -0.6, layer::ACTOR_BACK);
-        let ex = -16.0 + (-0.6f32).sin() * W_UPPER_ARM;
-        let ey = shoulder_y + (-0.6f32).cos() * W_UPPER_ARM;
-        back.reach(dl, S_DJ_FOREARM, ex, ey, 1.0, PI - 0.2, layer::ACTOR_BACK);
-    }
+        // Holding one cup of the headphones to his ear.
+        (-2.5, 0.9)
+    };
+    arm_chain(&back, dl, S_DJ_ARM, S_DJ_FOREARM, -16.0, shoulder_y, a, f, layer::ACTOR_BACK);
 
     rig.part(dl, S_DJ_TORSO, 0.0, W_TORSO_C - bob, 1.0, 0.0, layer::ACTOR);
     rig.part(dl, S_DJ_HEAD, 8.0, W_HEAD_C - bob, 1.0, b * 0.08 + 0.1, layer::ACTOR_FRONT);
 
     // Near hand works the mixer; on the drop it punches the air instead.
     let (a, f) = if drop {
-        let a = PI - 0.5 + (beat * PI).sin() * 0.3;
-        (a, a - 0.15)
+        pump_near(beat_pump(beat, 0.0))
     } else {
-        (0.55 + b * 0.08, 1.35 + b * 0.12)
+        (-0.45 - b * 0.06, -1.25 - b * 0.1)
     };
-    rig.reach(dl, S_DJ_ARM, 18.0, shoulder_y, 1.0, a, layer::ACTOR_FRONT);
-    let ex = 18.0 + a.sin() * W_UPPER_ARM;
-    let ey = shoulder_y + a.cos() * W_UPPER_ARM;
-    rig.reach(dl, S_DJ_FOREARM, ex, ey, 1.0, f, layer::ACTOR_FRONT);
+    arm_chain(&rig, dl, S_DJ_ARM, S_DJ_FOREARM, 18.0, shoulder_y, a, f, layer::ACTOR_FRONT);
 }
