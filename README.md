@@ -29,6 +29,7 @@ available for private builds; see [Password protection](#password-protection).
 | `↑` `↓` | Climb ladders, rope nets and the slide |
 | `I` | Infrared camera (dark levels only) |
 | `M` | Mute |
+| `P` | Poop (a little noisy) |
 | `Esc` | Pause |
 | `B` | Report a bug |
 | `Shift` + `D` | On level select: dev mode, every level unlocked |

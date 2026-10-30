@@ -100,3 +100,11 @@ def('rat_sack', 48, 44, function (c, w, h) {
   c.save(); c.strokeStyle = '#7d5c33'; c.lineWidth = 2.4 * PIX; c.lineCap = 'round';
   c.beginPath(); c.moveTo(12, 17); c.quadraticCurveTo(24, 8, 36, 17); c.stroke(); c.restore();
 });
+
+// What the rat leaves behind when you press P. Three pellets, no comment.
+def('rat_poop', 40, 22, function (c, w, h) {
+  [[11, 14, -0.3], [22, 15, 0.2], [17, 8, 0.5]].forEach(function (p) {
+    paper(c, ellipsePath(p[0], p[1], 8, 4.6, p[2]), '#4a3324', { w: w, h: h, lw: 1.6 * PIX });
+    c.fillStyle = 'rgba(255,255,255,0.35)'; c.fill(ellipsePath(p[0] - 2, p[1] - 2, 2.4, 1.2, p[2]));
+  });
+});

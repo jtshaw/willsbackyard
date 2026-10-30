@@ -51,6 +51,7 @@ pub mod ev {
     pub const STOLEN: u32 = 1 << 15;
     /// The party's beat just dropped.
     pub const DROP: u32 = 1 << 16;
+    pub const POOP: u32 = 1 << 17;
 }
 
 // ---------------------------------------------------------------------------
@@ -106,6 +107,16 @@ struct Particle {
 // Game
 // ---------------------------------------------------------------------------
 
+/// A little pile left behind on purpose. Falls until it hits something.
+struct Poop {
+    pos: V2,
+    vy: f32,
+    rot: f32,
+}
+
+/// Enough to make the point; old ones go first.
+const MAX_POOPS: usize = 60;
+
 pub struct Game {
     phase: Phase,
     phase_t: f32,
@@ -136,6 +147,8 @@ pub struct Game {
     prev_on_ground: bool,
     step_timer: f32,
     vision: u32,
+    poops: Vec<Poop>,
+    prev_poop: bool,
 }
 
 impl Game {
@@ -172,6 +185,8 @@ impl Game {
             prev_on_ground: false,
             step_timer: 0.0,
             vision: VISION_NORMAL,
+            poops: Vec::new(),
+            prev_poop: false,
         }
     }
 
@@ -185,6 +200,7 @@ impl Game {
         self.loot = 0;
         self.level_time = 0.0;
         self.particles.clear();
+        self.poops.clear();
         self.phase = Phase::Intro;
         self.phase_t = 0.0;
         self.tension = 0.0;
@@ -466,6 +482,34 @@ impl Game {
         }
     }
 
+    fn update_poops(&mut self, dt: f32) {
+        let bottom = self.lvl.bounds.bottom();
+        let lvl = &self.lvl;
+        for pp in self.poops.iter_mut() {
+            if pp.vy < 0.0 {
+                continue; // landed
+            }
+            let next = pp.pos.y + (pp.vy + GRAVITY * dt * 0.5) * dt;
+            pp.vy = (pp.vy + GRAVITY * dt).min(MAX_FALL);
+            // Lands on the first static surface it passes; anything that moves
+            // (swings, lanterns) it simply falls past.
+            let mut land = f32::INFINITY;
+            for s in lvl.solids.iter() {
+                let r = s.r;
+                if s.mover < 0 && pp.pos.x >= r.x && pp.pos.x <= r.right() && pp.pos.y <= r.y && next >= r.y {
+                    land = land.min(r.y);
+                }
+            }
+            if land.is_finite() {
+                pp.pos.y = land;
+                pp.vy = -1.0;
+            } else {
+                pp.pos.y = next;
+            }
+        }
+        self.poops.retain(|pp| pp.pos.y < bottom);
+    }
+
     fn update_checkpoints(&mut self) {
         for (i, c) in self.lvl.checkpoints.iter().enumerate() {
             if i > self.checkpoint && (self.p.pos.x - c.x).abs() < 220.0 && (self.p.pos.y - c.y).abs() < 300.0 {
@@ -609,6 +653,24 @@ impl Game {
             }
         }
 
+        // P: one pile per press, from the back end, with a small tell-tale plop.
+        let poop = input & IN_POOP != 0;
+        if poop && !self.prev_poop && self.p.state == PlayerState::Normal {
+            if self.poops.len() >= MAX_POOPS {
+                self.poops.remove(0);
+            }
+            let rot = self.rng.range(-0.4, 0.4);
+            self.poops.push(Poop {
+                pos: v2(self.p.pos.x - self.p.facing * 38.0, self.p.pos.y - 24.0),
+                vy: 0.0,
+                rot,
+            });
+            self.p.noise = self.p.noise.max(0.25);
+            self.events |= ev::POOP;
+        }
+        self.prev_poop = poop;
+        self.update_poops(dt);
+
         self.update_traps(dt);
         self.update_pickups();
         self.update_checkpoints();
@@ -703,6 +765,9 @@ impl Game {
         scene::draw_decor(dl, &self.lvl, self.time);
         scene::draw_solids(dl, &self.lvl);
         scene::draw_traps(dl, &self.lvl, self.time);
+        for pp in self.poops.iter() {
+            dl.push(Sp::new(S_RAT_POOP, pp.pos.x, pp.pos.y - 9.0).width(40.0).rot(pp.rot * 0.3).layer(layer::PROP + 6));
+        }
         scene::draw_pickups(dl, &self.lvl, self.time);
         scene::draw_npcs(dl, &self.lvl, self.time);
         scene::draw_party(dl, &self.lvl);

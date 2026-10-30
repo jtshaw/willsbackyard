@@ -10,6 +10,7 @@ pub const IN_DOWN: u32 = 1 << 3;
 pub const IN_JUMP: u32 = 1 << 4;
 pub const IN_SNEAK: u32 = 1 << 5;
 pub const IN_ACTION: u32 = 1 << 6;
+pub const IN_POOP: u32 = 1 << 7;
 
 // Tuning. The rat is light and skittery: quick to top speed, quick to stop.
 pub const GRAVITY: f32 = 2900.0;

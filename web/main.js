@@ -49,7 +49,7 @@ var EV = {
   JUMP: 1 << 0, LAND: 1 << 1, PICKUP: 1 << 2, LOOT: 1 << 3, SNAP: 1 << 4,
   ZAP: 1 << 5, HURT: 1 << 6, ALERT: 1 << 7, BARK: 1 << 8, CAUGHT: 1 << 9,
   SAFE: 1 << 10, DISARM: 1 << 11, STUCK: 1 << 12, STEP: 1 << 13, CHECKPOINT: 1 << 14,
-  STOLEN: 1 << 15, DROP: 1 << 16
+  STOLEN: 1 << 15, DROP: 1 << 16, POOP: 1 << 17
 };
 
 // ---------------------------------------------------------------------------
@@ -324,6 +324,7 @@ var Audio_ = (function () {
         break;
       case 'disarm': tone(1046, t, 0.07, 'sine', 0.22); tone(1568, t + 0.06, 0.14, 'sine', 0.18); break;
       case 'stuck':  noise(t, 0.3, 0.2, 120, 500); break;
+      case 'poop':   tone(300, t, 0.07, 'sine', 0.22, 120); tone(220, t + 0.06, 0.06, 'sine', 0.16, 90); break;
       case 'airhorn':
         // BWAP BWAP BWAAAAAP. Non-negotiable.
         [[0, 0.11], [0.15, 0.11], [0.3, 0.55]].forEach(function (b) {
@@ -357,7 +358,7 @@ var Audio_ = (function () {
 // Input
 // ---------------------------------------------------------------------------
 
-var IN = { LEFT: 1, RIGHT: 2, UP: 4, DOWN: 8, JUMP: 16, SNEAK: 32, ACTION: 64 };
+var IN = { LEFT: 1, RIGHT: 2, UP: 4, DOWN: 8, JUMP: 16, SNEAK: 32, ACTION: 64, POOP: 128 };
 var keys = {};
 var touchBits = 0;
 
@@ -368,7 +369,8 @@ var KEYMAP = {
   ArrowDown: IN.DOWN, KeyS: IN.DOWN,
   Space: IN.JUMP, KeyZ: IN.JUMP,
   ShiftLeft: IN.SNEAK, ShiftRight: IN.SNEAK,
-  KeyE: IN.ACTION, KeyJ: IN.ACTION, KeyX: IN.ACTION
+  KeyE: IN.ACTION, KeyJ: IN.ACTION, KeyX: IN.ACTION,
+  KeyP: IN.POOP
 };
 
 function inputBits() {
@@ -528,6 +530,7 @@ function showMenu(which, data) {
         '<div><kbd>Shift</kbd> or <kbd>&darr;</kbd><span>Sneak &mdash; slow, short, and quiet</span></div>' +
         '<div><kbd>E</kbd><span>Lift bait off a trap (crouch beside it first)</span></div>' +
         '<div><kbd>&uarr;</kbd><kbd>&darr;</kbd><span>Climb ladders and rope nets</span></div>' +
+        '<div><kbd>P</kbd><span>Poop. Whenever you like. It makes a little noise</span></div>' +
         '<div><kbd>Esc</kbd><span>Pause</span></div>' +
         '<div><kbd>B</kbd><span>Report a bug</span></div>' +
       '</div>' +
@@ -884,6 +887,7 @@ function handleEvents(bits) {
   if (bits & EV.STUCK) Audio_.play('stuck');
   if (bits & EV.CHECKPOINT) Audio_.play('check');
   if (bits & EV.STOLEN) Audio_.play('stolen');
+  if (bits & EV.POOP) Audio_.play('poop');
   if (bits & EV.DROP) {
     Audio_.play('airhorn');
     // Say it out loud the first couple of times; after that the music does.

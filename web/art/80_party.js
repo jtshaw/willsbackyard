@@ -402,65 +402,109 @@ def('guest_syringe', 70, 24, function (c, w, h) {
 });
 
 // ---- DJ Benny Blu3 -------------------------------------------------------------
-var SKIN_E = '#b97a52';
+// From the reference: dark wavy hair, full beard, dark sunglasses, big black
+// over-ear headphones, a cream floral jacket over a black tee, wooden beads.
+
+var SKIN_E = '#d9a27c';
+var JACKET = '#e9dccb';
+
+// Roses and blue blooms scattered over the jacket, the same every load.
+function florals(c, w, h, seed, scale) {
+  srnd(seed);
+  var n = Math.round(w * h / 260);
+  for (var i = 0; i < n; i++) {
+    var x = rnd() * w, y = rnd() * h, r = (2.6 + rnd() * 2.6) * (scale || 1);
+    c.fillStyle = 'rgba(96,120,70,0.6)';
+    c.fill(ellipsePath(x + r, y + r * 0.6, r * 0.9, r * 0.4, rnd() * 3));
+    c.fillStyle = rnd() < 0.55 ? '#c9474a' : '#5a86c4';
+    c.fill(ellipsePath(x, y, r, r * 0.85, 0));
+    c.fillStyle = 'rgba(255,255,255,0.35)';
+    c.fill(ellipsePath(x - r * 0.3, y - r * 0.3, r * 0.35, r * 0.3, 0));
+  }
+}
+
 def('dj_head', 92, 106, function (c, w, h) {
   srnd(89);
-  guestFace(c, w, h, SKIN_E);
-  // eyes closed, feeling it
-  c.fillStyle = SKIN_E; c.fill(ellipsePath(37, 54, 8, 6, 0)); c.fill(ellipsePath(63, 54, 8, 6, 0));
-  c.save(); c.strokeStyle = '#2d2420'; c.lineWidth = 2.4 * PIX; c.lineCap = 'round';
-  c.beginPath(); c.moveTo(30, 55); c.quadraticCurveTo(37, 59, 44, 55); c.stroke();
-  c.beginPath(); c.moveTo(56, 55); c.quadraticCurveTo(63, 59, 70, 55); c.stroke();
+  // Wavy hair spills out behind the headphone band.
+  var back = new Path2D();
+  back.moveTo(12, 56); back.bezierCurveTo(4, 30, 18, 4, 46, 2);
+  back.bezierCurveTo(74, 0, 90, 18, 86, 50); back.lineTo(80, 60);
+  back.bezierCurveTo(78, 40, 20, 40, 18, 62); back.closePath();
+  paper(c, back, '#2a1d16', { w: w, h: h, lw: 2.4 * PIX });
+  guestFace(c, w, h, SKIN_E, { noEyes: true });
+  var fringe = new Path2D();
+  fringe.moveTo(18, 40);
+  fringe.bezierCurveTo(20, 14, 40, 8, 58, 10);
+  fringe.bezierCurveTo(70, 12, 80, 22, 82, 36);
+  fringe.bezierCurveTo(72, 26, 66, 30, 58, 24);
+  fringe.bezierCurveTo(50, 32, 40, 26, 34, 32);
+  fringe.bezierCurveTo(28, 30, 22, 36, 18, 40);
+  fringe.closePath();
+  paper(c, fringe, '#2a1d16', { w: w, h: h, lw: 2.2 * PIX });
+  c.save(); c.strokeStyle = '#4a3428'; c.lineWidth = 1.6 * PIX; c.lineCap = 'round';
+  c.beginPath(); c.moveTo(30, 18); c.quadraticCurveTo(38, 12, 46, 18); c.stroke();
+  c.beginPath(); c.moveTo(52, 14); c.quadraticCurveTo(60, 10, 68, 18); c.stroke();
   c.restore();
-  // short beard
+  // Full dark beard up to the cheekbones.
   var beard = new Path2D();
-  beard.moveTo(20, 60); beard.bezierCurveTo(22, 84, 36, 92, 48, 92);
-  beard.bezierCurveTo(62, 92, 76, 84, 78, 60);
-  beard.bezierCurveTo(70, 70, 60, 72, 48, 72); beard.bezierCurveTo(36, 72, 26, 70, 20, 60);
-  beard.closePath();
-  paper(c, beard, '#2b1d16', { w: w, h: h, lw: 2 * PIX });
-  c.save(); c.strokeStyle = '#f2e6da'; c.lineWidth = 2.6 * PIX; c.lineCap = 'round';
-  c.beginPath(); c.moveTo(40, 79); c.quadraticCurveTo(48, 83, 58, 78); c.stroke(); c.restore();
-  // electric-blue cap
-  var cap = new Path2D();
-  cap.moveTo(14, 38); cap.bezierCurveTo(14, 10, 36, 2, 52, 3);
-  cap.bezierCurveTo(72, 4, 84, 18, 84, 36); cap.closePath();
-  paper(c, cap, P.blu, { w: w, h: h, lw: 2.6 * PIX });
-  paper(c, roundRect(54, 30, 38, 9, 4), sh(P.blu, -0.25), { w: w, h: h, lw: 2.2 * PIX, shade: false });
-  c.fillStyle = '#ffffff'; c.fill(ellipsePath(46, 7, 3, 2.2, 0));
-  // headphones: band over the cap, one cup on the ear
-  c.save(); c.strokeStyle = '#111317'; c.lineWidth = 5 * PIX;
-  c.beginPath(); c.arc(48, 40, 38, Math.PI * 1.02, Math.PI * 1.98); c.stroke(); c.restore();
-  paper(c, roundRect(4, 40, 18, 28, 7), '#16181c', { w: w, h: h, lw: 2 * PIX });
-  c.fillStyle = P.bluLt; c.fill(ellipsePath(13, 54, 4, 8, 0));
+  beard.moveTo(19, 52); beard.bezierCurveTo(18, 84, 34, 98, 49, 98);
+  beard.bezierCurveTo(66, 98, 80, 84, 79, 52);
+  beard.bezierCurveTo(74, 64, 66, 68, 60, 66); beard.bezierCurveTo(54, 64, 44, 64, 38, 66);
+  beard.bezierCurveTo(30, 68, 22, 62, 19, 52); beard.closePath();
+  paper(c, beard, '#2e211a', { w: w, h: h, lw: 2 * PIX });
+  // The big grin through it.
+  c.save(); c.fillStyle = '#ffffff';
+  c.beginPath(); c.moveTo(36, 76); c.quadraticCurveTo(50, 88, 64, 75); c.closePath(); c.fill();
+  c.strokeStyle = '#3a221a'; c.lineWidth = 2.2 * PIX; c.stroke(); c.restore();
+  shades(c, '#111111', '#1e2226', false);
+  // Headphones: band over the top, a big cup over the ear.
+  c.save(); c.strokeStyle = '#121316'; c.lineWidth = 6 * PIX; c.lineCap = 'round';
+  c.beginPath(); c.arc(50, 46, 40, Math.PI * 1.08, Math.PI * 1.95); c.stroke(); c.restore();
+  paper(c, roundRect(76, 34, 16, 34, 7), '#1a1b1f', { w: w, h: h, lw: 2 * PIX });
+  paper(c, roundRect(2, 36, 16, 32, 7), '#1a1b1f', { w: w, h: h, lw: 2 * PIX });
+  c.fillStyle = 'rgba(255,255,255,0.15)'; c.fill(ellipsePath(10, 52, 3, 10, 0));
   grain(c, w, h, 0.03);
 });
 
 def('dj_torso', 96, 112, function (c, w, h) {
   srnd(90);
   var body = new Path2D();
-  body.moveTo(18, 10); body.lineTo(78, 10);
-  body.bezierCurveTo(92, 16, 94, 60, 90, 104);
-  body.lineTo(6, 104);
-  body.bezierCurveTo(2, 60, 4, 16, 18, 10);
+  body.moveTo(16, 10); body.lineTo(80, 10);
+  body.bezierCurveTo(94, 16, 96, 60, 92, 106);
+  body.lineTo(4, 106);
+  body.bezierCurveTo(0, 60, 2, 16, 16, 10);
   body.closePath();
-  paper(c, body, P.hoodie, { w: w, h: h, lw: 3 * PIX });
-  // hood bunched at the neck, drawstrings
-  paper(c, roundRect(26, 0, 44, 18, 8), sh(P.hoodie, 0.12), { w: w, h: h, lw: 2.2 * PIX });
-  c.save(); c.strokeStyle = '#d9dce0'; c.lineWidth = 1.6 * PIX;
-  c.beginPath(); c.moveTo(40, 16); c.lineTo(38, 36); c.moveTo(56, 16); c.lineTo(58, 36); c.stroke(); c.restore();
-  c.fillStyle = P.blu; c.font = 'bold 22px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
-  c.fillText('BLU3', 48, 60);
-  c.fillStyle = 'rgba(121,182,255,0.35)'; c.fillText('BLU3', 49, 61);
+  paper(c, body, JACKET, { w: w, h: h, lw: 3 * PIX });
+  c.save(); c.clip(body); florals(c, w, h, 191); c.restore();
+  // Black tee down the open front.
+  var tee = new Path2D();
+  tee.moveTo(34, 8); tee.lineTo(62, 8); tee.lineTo(60, 106); tee.lineTo(36, 106); tee.closePath();
+  paper(c, tee, '#1c1c1e', { w: w, h: h, lw: 2.2 * PIX });
+  // Lapels.
+  c.save(); c.strokeStyle = sh(JACKET, -0.35); c.lineWidth = 2.4 * PIX; c.lineJoin = 'round';
+  c.beginPath(); c.moveTo(30, 8); c.lineTo(24, 30); c.lineTo(36, 46); c.stroke();
+  c.beginPath(); c.moveTo(66, 8); c.lineTo(72, 30); c.lineTo(60, 46); c.stroke();
+  c.restore();
+  paper(c, roundRect(36, 0, 24, 14, 6), SKIN_E, { w: w, h: h, lw: 2 * PIX, shade: false });
+  // Wooden bead necklace.
+  for (var i = 0; i <= 10; i++) {
+    var t = i / 10, a = Math.PI * (0.1 + 0.8 * t);
+    paper(c, ellipsePath(48 - Math.cos(a) * 16, 10 + Math.sin(a) * 26, 2.8, 2.8, 0),
+      i % 3 === 0 ? '#3a2a1e' : '#a77a4a', { w: w, h: h, lw: 1 * PIX, shade: false });
+  }
   grain(c, w, h, 0.03);
 });
 
 def('dj_arm', 30, 60, function (c, w, h) {
-  limbRect(c, w, h, P.hoodie, 5, 3, 20, 54, 9);
+  var p = roundRect(4, 3, 22, 54, 9);
+  paper(c, p, JACKET, { w: w, h: h, lw: 2.6 * PIX });
+  c.save(); c.clip(p); florals(c, w, h, 192, 0.9); c.restore();
 });
 def('dj_forearm', 28, 58, function (c, w, h) {
-  limbRect(c, w, h, P.hoodie, 5, 2, 18, 30, 8);
-  limbRect(c, w, h, SKIN_E, 6, 28, 16, 14, 6);
+  var p = roundRect(4, 2, 20, 32, 8);
+  paper(c, p, JACKET, { w: w, h: h, lw: 2.6 * PIX });
+  c.save(); c.clip(p); florals(c, w, h, 193, 0.9); c.restore();
+  limbRect(c, w, h, SKIN_E, 6, 30, 16, 12, 6);
   hand(c, w, h, SKIN_E);
 });
 
