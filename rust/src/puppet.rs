@@ -766,8 +766,8 @@ pub fn draw_dj(dl: &mut DrawList, n: &Npc, beat: f32, drop: bool) {
     let (a, f) = if drop {
         pump_far(beat_pump(beat, PI * 0.5))
     } else {
-        // Holding one cup of the headphones to his ear.
-        (-2.5, 0.9)
+        // Holding the headphone cup to his ear, elbow out behind him.
+        (2.3 + b * 0.04, -1.8)
     };
     arm_chain(&back, dl, S_DJ_ARM, S_DJ_FOREARM, -16.0, shoulder_y, a, f, layer::ACTOR_BACK);
 
@@ -778,7 +778,8 @@ pub fn draw_dj(dl: &mut DrawList, n: &Npc, beat: f32, drop: bool) {
     let (a, f) = if drop {
         pump_near(beat_pump(beat, 0.0))
     } else {
-        (-0.45 - b * 0.06, -1.25 - b * 0.1)
+        // Down on the decks, nudging a jog wheel in time.
+        (-0.15, -0.55 - b * 0.12)
     };
     arm_chain(&rig, dl, S_DJ_ARM, S_DJ_FOREARM, 18.0, shoulder_y, a, f, layer::ACTOR_FRONT);
 }
