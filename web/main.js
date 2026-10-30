@@ -371,6 +371,7 @@ function showMenu(which, data) {
         '<button data-act="levels">Choose a level</button>' +
         '<button data-act="controls">Controls</button>' +
         '<button data-act="bug">Report a bug</button>' +
+        '<button data-act="idea">Suggest an idea</button>' +
       '</div>';
   } else if (which === 'levels') {
     html = '<h2>Pick your night</h2><div class="levels">';
@@ -396,7 +397,8 @@ function showMenu(which, data) {
       '<button data-act="restart">Restart level</button>' +
       '<button data-act="levels">Level select</button>' +
       '<button data-act="title">Quit to title</button>' +
-      '<button data-act="bug">Report a bug</button></div>';
+      '<button data-act="bug">Report a bug</button>' +
+      '<button data-act="idea">Suggest an idea</button></div>';
   } else if (which === 'complete') {
     var next = data.level + 1;
     html = '<div class="stamp">Safe!</div>' +
@@ -461,6 +463,7 @@ function menuAction(act, node) {
   else if (act === 'restart') { startLevel(state.level); }
   else if (act === 'next') { startLevel(state.level + 1); }
   else if (act === 'bug') { reportBug(); }
+  else if (act === 'idea') { suggestIdea(); }
   else if (act === 'finish') { showMenu('finished', { total: lastStats.total, deaths: lastStats.deaths }); }
 }
 
@@ -489,6 +492,25 @@ function reportBug() {
   ].join('\n');
   var url = ISSUE_URL + '?template=bug.yml' +
     '&title=' + encodeURIComponent('[' + LEVEL_NAMES[level] + '] ') +
+    '&context=' + encodeURIComponent(details);
+  window.open(url, '_blank', 'noopener');
+}
+
+// Ideas don't need the player's physics state, just enough to say where
+// the player was when it occurred to them.
+function suggestIdea() {
+  if (!state.menu) { state.paused = true; showMenu('pause'); }
+  refreshViews();
+  var p = wasm.wb_state_ptr() >> 2;
+  var level = memF32[p + 6] | 0;
+  var details = [
+    'build:    ' + BUILD_ID,
+    'level:    ' + level + ' (' + LEVEL_NAMES[level] + ')',
+    'screen:   ' + window.innerWidth + 'x' + window.innerHeight + (isTouch ? ', touch' : ''),
+    'browser:  ' + navigator.userAgent
+  ].join('\n');
+  var url = ISSUE_URL + '?template=feature.yml' +
+    '&title=' + encodeURIComponent('Idea: ') +
     '&context=' + encodeURIComponent(details);
   window.open(url, '_blank', 'noopener');
 }

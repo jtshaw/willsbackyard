@@ -1,0 +1,39 @@
+name: Feature request
+description: An idea for the game — a level, a character, a mechanic, a control.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Got an idea? **Suggest an idea** on the game's title or pause menu
+        opens this form with the level and build already filled in.
+  - type: textarea
+    id: idea
+    attributes:
+      label: What's the idea?
+      description: Describe it the way you'd pitch it to a friend.
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why would it make the game better?
+      description: What's missing, frustrating or not fun enough right now?
+  - type: dropdown
+    id: area
+    attributes:
+      label: What kind of thing is it?
+      options:
+        - A new level
+        - A change to an existing level
+        - A character, guard or animal
+        - A mechanic or power-up
+        - Controls, menus or the HUD
+        - Sound or music
+        - Something else
+  - type: textarea
+    id: context
+    attributes:
+      label: Game details
+      description: Filled in automatically when you use the in-game button. Leave it as is.
+      render: text

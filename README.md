@@ -134,18 +134,21 @@ says so. `tools/test_lock.js` then checks the result actually protects
 something — that no game code, level name or the password itself survives in
 the page, that the real password opens it, and that near-miss passwords don't.
 
-## Bug reports
+## Bug reports and ideas
 
 Press `B` in the game, or use **Report a bug** on the title or pause menu. It
 pauses the game and opens a GitHub issue pre-filled with the build, level, the
 rat's exact position and the browser. `node tools/render.js repro <level> <x> <y>`
-renders that spot offline.
+renders that spot offline. **Suggest an idea**, next to it, opens a feature
+request the same way.
 
-To have Claude work on a report, add the `claude-fix` label to the issue or
-comment `@claude` on it (only collaborators can trigger it). The
-[workflow](.github/workflows/claude-fix.yml) reproduces the bug, fixes it, and
-opens a PR for review. Locally, `/fix-bug <issue#>` in Claude Code follows the
-same [steps](.claude/skills/fix-bug/SKILL.md).
+To have Claude work on either, add the `claude` label to the issue or comment
+`@claude` on it (only collaborators can trigger it). The
+[workflow](.github/workflows/claude.yml) reproduces and fixes bugs, and builds
+small features or posts a plan for big ones, then opens a PR for review.
+Locally, `/fix-bug <issue#>` and `/build-feature <issue#>` in Claude Code
+follow the same steps ([bugs](.claude/skills/fix-bug/SKILL.md),
+[features](.claude/skills/build-feature/SKILL.md)).
 
 ## Building
 
