@@ -15,9 +15,10 @@ Download [`dist/willsbackyard.html`](dist/willsbackyard.html) and open it in any
 modern browser. That's it — the WebAssembly core is base64-embedded in the page
 and every sprite is drawn procedurally at load.
 
-The published build asks for a password before it will run. See
-[Password protection](#password-protection) for what that does and does not
-mean.
+Or play it online at <https://jtshaw.github.io/willsbackyard/>.
+
+The published build is open to anyone. An optional password lock is still
+available for private builds; see [Password protection](#password-protection).
 
 | Input | Action |
 | --- | --- |
